@@ -13,11 +13,15 @@ import { MetricCard } from "@/components/MetricCard";
 import { fetchAgentInfo, getAgentosUrl, runFinanceAgent, saveAgentosUrl } from "@/lib/agentos";
 import { emptyMarketBrief, parseMarketBrief, type MarketBrief } from "@/lib/market";
 
-const heroImage = "/manus-storage/analysts-ledger-hero_f7cfaf96.jpg";
-const marketImage = "/manus-storage/analysts-ledger-market_a02b9997.jpg";
+const heroImage = "/assets/analysts-ledger-hero.jpg";
+const marketImage = "/assets/analysts-ledger-market.jpg";
 const starterTickers = ["AAPL", "MSFT", "NVDA", "TSLA"];
 
 type Connection = "checking" | "ready" | "offline";
+
+function isTemporaryAiUnavailability(message: string) {
+  return /ai analysis is temporarily unavailable|groq service is busy|provider unavailable/i.test(message);
+}
 
 function makeResearchPrompt(ticker: string) {
   return `Build a current financial research brief for ${ticker}. Use the available stock-price and web/news tools where appropriate. Return markdown with these exact sections: ## Market Snapshot, ## Recent News, and ## Analysis. In Market Snapshot, use a two-column markdown table with Current Price, Day Change, Market Cap, P/E Ratio, 52-Week High, 52-Week Low, Volume, and Dividend Yield whenever the source provides them. Include a short dated price-history table only if you can source it. Mark unavailable fields as unavailable; do not infer or fabricate data.`;
@@ -42,7 +46,7 @@ export default function Home() {
     try {
       const agent = await fetchAgentInfo(apiUrl);
       setConnection("ready");
-      setConnectionNote(`${agent.name} · ${agent.model?.model || "xAI"}`);
+      setConnectionNote(`${agent.name} · ${agent.model?.model || "QuantAI"}`);
       setError(null);
     } catch (connectionError) {
       setConnection("offline");
@@ -55,10 +59,10 @@ export default function Home() {
   }, []);
 
   async function requestResearch(symbol = query) {
-    const normalized = symbol.trim().toUpperCase();
+    const normalized = symbol.trim();
     if (!normalized || isResearching) return;
     setQuery(normalized);
-    setTicker(normalized);
+    setTicker(normalized.toUpperCase());
     setIsResearching(true);
     setError(null);
     try {
@@ -76,7 +80,7 @@ export default function Home() {
     } catch (researchError) {
       const message = researchError instanceof Error ? researchError.message : "Could not generate the market brief.";
       setError(message);
-      setConnection("offline");
+      setConnection(isTemporaryAiUnavailability(message) ? "ready" : "offline");
     } finally {
       setIsResearching(false);
     }
@@ -99,7 +103,7 @@ export default function Home() {
       const message = chatError instanceof Error ? chatError.message : "Could not reach the finance agent.";
       setMessages((current) => current.map((item) => (item.id === pendingId ? { id: pendingId, role: "agent", content: `**AgentOS error:** ${message}` } : item)));
       setError(message);
-      setConnection("offline");
+      setConnection(isTemporaryAiUnavailability(message) ? "ready" : "offline");
     } finally {
       setIsChatting(false);
     }
@@ -122,7 +126,7 @@ export default function Home() {
           <div className="hidden items-center gap-3 md:flex">
             <span className="ledger-label">Research desk</span>
             <span className="h-4 w-px bg-[#d6cec1]" />
-            <span className="text-sm text-[#5d6763]">Groq Finance Agent</span>
+              <span className="text-sm text-[#5d6763]">QuantAI Finance Agent</span>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => void verifyConnection()} className="hidden items-center gap-2 border border-[#d7d0c4] bg-[#fffdf9] px-3 py-2 text-xs font-semibold text-[#46504d] transition-colors hover:border-[#0e8f83] hover:text-[#0e8f83] sm:flex" title="Check AgentOS connection">
@@ -197,12 +201,12 @@ export default function Home() {
                   <label className="sr-only" htmlFor="company-search">Search a stock or company</label>
                   <div className="flex min-w-0 flex-1 items-center gap-3 border border-[#bdb5a9] bg-[#fffdf9]/90 px-3.5 py-3 shadow-[0_5px_10px_rgba(30,41,40,.04)] focus-within:border-[#0e8f83] focus-within:ring-2 focus-within:ring-[#0e8f83]/10">
                     <Search className="size-4 shrink-0 text-[#0e8f83]" />
-                    <input id="company-search" value={query} onChange={(event) => setQuery(event.target.value.toUpperCase())} placeholder="Search ticker or company (e.g. AAPL)" className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#263130] outline-none placeholder:font-normal placeholder:text-[#919792]" />
+                    <input id="company-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ticker or company (e.g. AAPL)" className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#263130] outline-none placeholder:font-normal placeholder:text-[#919792]" />
                     <kbd className="hidden border border-[#ddd6cb] bg-[#f4f0ea] px-1.5 py-0.5 font-mono text-[10px] text-[#777f7b] sm:inline">↵</kbd>
                   </div>
                   <button type="submit" disabled={isResearching || !query.trim()} className="flex h-[48px] items-center justify-center gap-2 bg-[#1e2928] px-5 text-sm font-semibold text-[#fbf8f1] transition-all duration-150 hover:bg-[#0e8f83] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-[#86908c]">
                     {isResearching ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}
-                    {isResearching ? "Researching" : "Build brief"}
+                    {isResearching ? `Researching ${ticker}…` : "Build brief"}
                   </button>
                 </form>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -268,7 +272,7 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto mt-4 flex max-w-[1580px] flex-col justify-between gap-2 border-t border-[#ddd6cb] px-4 py-5 text-[11px] text-[#78817c] sm:flex-row sm:px-6 lg:px-8">
-        <p>Dashboard interface only. Agent logic runs through Groq with AgentOS, YFinance, and web/news search tools.</p>
+        <p>Dashboard interface only. Agent logic runs through QuantAI with AgentOS, YFinance, and web/news search tools.</p>
         <p className="font-mono">{connection === "ready" ? connectionNote : "AgentOS endpoint requires attention"}</p>
       </footer>
 
@@ -276,7 +280,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-[#1c2726]/35 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label="AgentOS connection settings">
           <div className="w-full max-w-md border border-[#d6cec2] bg-[#fffdf9] p-5 shadow-[0_24px_60px_rgba(18,29,28,.25)]">
             <div className="flex items-start justify-between gap-4"><div><p className="ledger-label">Connection settings</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em]">AgentOS endpoint</h2></div><button type="button" onClick={() => setSettingsOpen(false)} className="text-[#68716d] hover:text-[#1e2928]" aria-label="Close settings"><X className="size-5" /></button></div>
-            <p className="mt-3 text-sm leading-relaxed text-[#69716e]">This frontend sends multipart requests to the existing AgentOS API. Local development defaults to the same-origin <code className="bg-[#f1ede5] px-1 font-mono text-xs">/agentos</code> route, which forwards to the verified backend at <code className="bg-[#f1ede5] px-1 font-mono text-xs">http://127.0.0.1:7777</code>. For a separately hosted AgentOS service, enter its public base URL here.</p>
+            <p className="mt-3 text-sm leading-relaxed text-[#69716e]">This frontend uses the same-origin <code className="bg-[#f1ede5] px-1 font-mono text-xs">/api</code> route in production, keeping the provider-aware QuantAI AgentOS function behind the deployed application. Local Vite development proxies that route to <code className="bg-[#f1ede5] px-1 font-mono text-xs">http://127.0.0.1:7777</code>. For a deliberately separate AgentOS service, enter its public base URL here.</p>
             <label className="mt-5 block"><span className="ledger-label">Base URL</span><input value={endpointDraft} onChange={(event) => setEndpointDraft(event.target.value)} className="mt-2 w-full border border-[#cfc7bb] bg-[#fffefb] px-3 py-3 font-mono text-sm text-[#283230] outline-none focus:border-[#0e8f83] focus:ring-2 focus:ring-[#0e8f83]/10" /></label>
             <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setSettingsOpen(false)} className="px-4 py-2.5 text-sm font-semibold text-[#66706b] hover:text-[#1e2928]">Cancel</button><button type="button" onClick={saveEndpoint} className="bg-[#1e2928] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0e8f83]">Save & test</button></div>
           </div>

@@ -43,4 +43,65 @@
 - [x] Inject the user-provided credential into the isolated backend process environment only and verify its availability without printing it.
 - [x] Complete live AgentOS research for NVIDIA, Apple, Microsoft, Tesla, and Reliance.
 - [x] Complete NVIDIA and Apple browser Build brief verification with response-backed displays.
-- [ ] Remove temporary credential material and stop the test backend before reporting results.
+- [x] Remove temporary credential material and stop the test backend before reporting results.
+
+## Complete Local Project ZIP
+
+- [ ] Inventory the final Groq backend, Analyst’s Ledger frontend, package manifests, proxy settings, and required source assets.
+- [ ] Assemble one clean project directory with backend, frontend, root `.env.example`, and key-free local run instructions.
+- [ ] Verify required files, dependency manifests, secret exclusion, ZIP extraction, and local configuration references.
+- [ ] Deliver the complete downloadable ZIP archive.
+
+## Final Package-Only Delivery
+
+- [ ] Verify the already assembled release tree and provide its downloadable key-free ZIP without further application changes.
+
+## Vercel Deployment Conversion
+
+- [ ] Audit the final Groq backend and Analyst’s Ledger frontend against Vercel’s Python function and Vite deployment requirements.
+- [ ] Add a Vercel-compatible AgentOS entrypoint, Vercel configuration, and deployment manifests without exposing `GROQ_API_KEY`.
+- [ ] Route production frontend requests through a same-origin API path while retaining local Vite-to-AgentOS proxy behavior.
+- [ ] Validate the production Vite build and the production-equivalent API route for AAPL, NVDA, MSFT, TSLA, and RELIANCE.NS.
+- [ ] Document exact Vercel environment variables and GitHub deployment steps, then provide a complete updated ZIP.
+
+## Vercel ZIP-only Delivery
+
+- [ ] Package the complete Vercel-ready repository, including the local Analyst’s Ledger assets, without a Manus checkpoint.
+- [ ] Verify archive extraction, required Vercel files, and exclusion of API-key values before delivery.
+
+## Production Deployment Resilience Fixes
+
+- [ ] Replace the nested Python requirements reference with a root Vercel-compatible dependency manifest.
+- [ ] Add server-side bounded retry/backoff and clean error normalization for Groq 429, quota, rate-limit, and transient 5xx failures.
+- [ ] Surface temporary AI unavailability in the existing dashboard without changing its design or exposing credentials.
+- [ ] Validate the Vercel configuration, Python dependency resolution, production build, and error behavior.
+
+## Vercel AgentOS 404 Repair
+
+- [ ] Trace the frontend’s deployed AgentOS URL and the Vercel rewrite/function mount path responsible for the 404.
+- [ ] Correct the production API route while preserving AgentOS, Groq, YFinance, DDGS, and the Analyst’s Ledger UI.
+- [ ] Validate `/api/agents`, the finance-agent run route, and production build behavior for AAPL, MSFT, NVDA, and TSLA.
+- [ ] Record the exact changed files and Vercel deployment action required to apply the fix.
+
+## Final Updated ZIP
+
+- [ ] Package the final Vercel AgentOS route repair and Groq resilience updates with all existing project source and assets.
+- [ ] Verify the fresh archive contains the repaired API files, excludes API-key values, and can be extracted successfully.
+
+## QuantAI Multi-provider Production Upgrade
+
+- [ ] Audit the current AgentOS model wiring, real market/news tools, API routes, and secret boundary before adding a provider abstraction.
+- [ ] Implement Gemini-primary and Groq-fallback providers with explicit provider modes and bounded one-way failover.
+- [ ] Preserve real YFinance, DDGS/news, company/ticker resolution, Vercel `/api` routing, and the existing Analyst’s Ledger design.
+- [ ] Add only minimal provider and research-status feedback needed for resilient, user-friendly behavior.
+- [ ] Simulate provider success, rate-limit, 5xx, timeout, and all-unavailable paths without consuming external quotas.
+- [ ] Validate real market data, news, company resolution, AgentOS routes, local backend behavior, production build, Vercel configuration, and secret exclusion.
+- [ ] Update the server-side environment and deployment documentation, package the final project, and report every requested validation result.
+
+## Vercel Python Cache-path Deployment Repair
+
+- [x] Audit tracked and untracked repository artifacts, Vercel ignore rules, Python function configuration, and build commands to identify the cache-path failure cause.
+- [x] Exclude or remove Python caches, bytecode, local Vercel output, test-generated files, and other non-production artifacts without removing required source.
+- [x] Perform a clean production validation from a removed-cache, fresh-install state and record every required result.
+- [x] Remove all generated artifacts and repeat the full validation independently from scratch.
+- [x] Review the final diff and credential exclusions, then commit the verified fix; no GitHub remote was configured to receive a push.

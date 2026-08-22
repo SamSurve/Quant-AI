@@ -1,0 +1,39 @@
+# Deployment-only exclusions. Vercel uploads all project files by default, so
+# explicitly omit local caches and tests before the Python function builder runs.
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+*.egg-info/
+
+# Local tooling, build output, and deployment state
+.vercel/
+.venv/
+venv/
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+.manus-logs/
+.webdev/
+terminal_full_output/
+
+# Test code is retained in Git for regression coverage but must not be uploaded
+# into the production Python function bundle.
+tests/
+
+# Runtime configuration is supplied through Vercel environment variables.
+.env
+.env.*
+!.env.example
