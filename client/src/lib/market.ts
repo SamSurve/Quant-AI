@@ -6,6 +6,11 @@
 export type Metric = { label: string; value: string; tone?: "neutral" | "positive" | "negative" };
 export type ChartPoint = { label: string; value: number };
 export type MarketBrief = {
+  companyName: string;
+  ticker: string;
+  exchange: string;
+  sector: string;
+  industry: string;
   quote: string;
   change: string;
   metrics: Metric[];
@@ -105,6 +110,10 @@ function findValue(tables: MarkdownTable[], markdown: string, terms: string[]) {
   return fromTable !== "—" ? fromTable : extractFallbackValue(markdown, terms);
 }
 
+function displayValue(value: string) {
+  return value === "—" || /^unavailable$/i.test(value) ? "—" : value;
+}
+
 function numberFromCell(value: string) {
   const cleaned = value.replace(/[$€£₹¥,\s]/g, "").replace(/\((.*)\)/, "-$1");
   const match = cleaned.match(/-?\d+(?:\.\d+)?/);
@@ -144,14 +153,19 @@ function toneFor(value: string): Metric["tone"] {
 
 export function parseMarketBrief(markdown: string): MarketBrief {
   const tables = parseTables(markdown);
-  const quote = findValue(tables, markdown, ["current price", "stock price", "last price", "price"]);
-  const change = findValue(tables, markdown, ["day change", "change", "daily change", "percent change"]);
+  const quote = displayValue(findValue(tables, markdown, ["current price", "stock price", "last price", "price"]));
+  const change = displayValue(findValue(tables, markdown, ["day change", "change", "daily change", "percent change"]));
   const metrics = metricKeys.map((metric) => {
-    const value = findValue(tables, markdown, metric.matches);
+    const value = displayValue(findValue(tables, markdown, metric.matches));
     return { label: metric.label, value, tone: toneFor(value) };
   });
 
   return {
+    companyName: displayValue(findValue(tables, markdown, ["company name", "company"])),
+    ticker: displayValue(findValue(tables, markdown, ["ticker", "symbol"])),
+    exchange: displayValue(findValue(tables, markdown, ["exchange"])),
+    sector: displayValue(findValue(tables, markdown, ["sector"])),
+    industry: displayValue(findValue(tables, markdown, ["industry"])),
     quote,
     change,
     metrics,
@@ -162,6 +176,11 @@ export function parseMarketBrief(markdown: string): MarketBrief {
 }
 
 export const emptyMarketBrief: MarketBrief = {
+  companyName: "—",
+  ticker: "—",
+  exchange: "—",
+  sector: "—",
+  industry: "—",
   quote: "—",
   change: "Awaiting AgentOS research",
   metrics: metricKeys.map((metric) => ({ label: metric.label, value: "—", tone: "neutral" })),

@@ -224,6 +224,13 @@ export default defineConfig({
     port: 3000,
     strictPort: false, // Will find next available port if 3000 is busy
     host: true,
+    proxy: {
+      "/agentos": {
+        target: process.env.AGENTOS_API_URL || "http://127.0.0.1:7777",
+        changeOrigin: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/agentos/, ""),
+      },
+    },
     allowedHosts: [
       ".manuspre.computer",
       ".manus.computer",

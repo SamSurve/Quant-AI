@@ -57,7 +57,7 @@ export function ChatPanel({
           <div className="rounded-sm border border-[#e2dbd0] bg-[#fcfaf6] p-4">
             <div className="flex items-center gap-2 text-[#2b3533]">
               <Bot className="size-4 text-[#0e8f83]" />
-              <p className="text-sm font-medium">Research with the original xAI agent.</p>
+            <p className="text-sm font-medium">Research with the Groq finance agent.</p>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-[#747c78]">Open an evidence trail: ask for a company brief, a risk review, or a tool-sourced market update.</p>
           </div>

@@ -3,9 +3,9 @@
  * This module connects only to the existing AgentOS API; it does not change agent behavior.
  */
 
-export const AGENT_ID = "xai-finance-agent";
+export const AGENT_ID = "groq-finance-agent";
 const STORAGE_KEY = "analysts-ledger-agentos-url";
-const DEFAULT_API_URL = import.meta.env.VITE_AGENTOS_API_URL || "http://localhost:7777";
+const DEFAULT_API_URL = import.meta.env.VITE_AGENTOS_API_URL || "/agentos";
 
 export type AgentRunResponse = {
   run_id?: string;

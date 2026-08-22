@@ -64,7 +64,9 @@ export default function Home() {
     try {
       const response = await runFinanceAgent({ message: makeResearchPrompt(normalized), sessionId });
       setSessionId(response.session_id || sessionId);
-      setBrief(parseMarketBrief(response.content || ""));
+      const parsedBrief = parseMarketBrief(response.content || "");
+      setBrief(parsedBrief);
+      if (parsedBrief.ticker !== "—") setTicker(parsedBrief.ticker.toUpperCase());
       setMessages((current) => [
         ...current,
         { id: crypto.randomUUID(), role: "user", content: `Create a research brief for ${normalized}.` },
@@ -120,7 +122,7 @@ export default function Home() {
           <div className="hidden items-center gap-3 md:flex">
             <span className="ledger-label">Research desk</span>
             <span className="h-4 w-px bg-[#d6cec1]" />
-            <span className="text-sm text-[#5d6763]">Original xAI Finance Agent</span>
+            <span className="text-sm text-[#5d6763]">Groq Finance Agent</span>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => void verifyConnection()} className="hidden items-center gap-2 border border-[#d7d0c4] bg-[#fffdf9] px-3 py-2 text-xs font-semibold text-[#46504d] transition-colors hover:border-[#0e8f83] hover:text-[#0e8f83] sm:flex" title="Check AgentOS connection">
@@ -180,8 +182,8 @@ export default function Home() {
                       <p className="ledger-label text-[#466863]">Live research canvas</p>
                     </div>
                     <div className="mt-4 flex items-end gap-3">
-                      <h1 className="font-serif text-5xl tracking-[-0.06em] text-[#1e2928] sm:text-6xl">{ticker}</h1>
-                      <span className="mb-1.5 border-l border-[#c9c1b5] pl-3 text-sm text-[#59635f]">Agent-led market view</span>
+                      <div><h1 className="font-serif text-5xl tracking-[-0.06em] text-[#1e2928] sm:text-6xl">{ticker}</h1>{brief.companyName !== "—" && <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#65706b]">{brief.companyName}</p>}</div>
+                      <span className="mb-1.5 border-l border-[#c9c1b5] pl-3 text-sm text-[#59635f]">{brief.sector !== "—" ? `${brief.sector}${brief.industry !== "—" ? ` · ${brief.industry}` : ""}` : "Agent-led market view"}</span>
                     </div>
                   </div>
                   <div className="border-l border-[#c6beb2] pl-4 sm:text-right sm:border-l-0 sm:border-r sm:pr-4 sm:pl-0">
@@ -209,7 +211,7 @@ export default function Home() {
                     <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} disabled={isResearching} className="border-b border-[#c4bcb0] pb-0.5 font-mono text-[11px] font-medium text-[#58615e] transition-colors hover:border-[#0e8f83] hover:text-[#0e8f83] disabled:opacity-50">{symbol}</button>
                   ))}
                 </div>
-                <div className="mt-5 grid border-t border-[#d4ccbf] pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-[#6f7873] sm:grid-cols-3"><p><span className="mr-1 text-[#0e8f83]">▾</span> Source lane · AgentOS</p><p className="mt-1 sm:mt-0"><span className="mr-1 text-[#0e8f83]">▾</span> Evidence · {brief.analysis ? "received" : "awaiting request"}</p><p className="mt-1 sm:mt-0 sm:text-right"><span className="mr-1 text-[#0e8f83]">▾</span> Status · {isResearching ? "researching" : "ready"}</p></div>
+                <div className="mt-5 grid border-t border-[#d4ccbf] pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-[#6f7873] sm:grid-cols-3"><p><span className="mr-1 text-[#0e8f83]">▾</span> Source lane · AgentOS</p><p className="mt-1 sm:mt-0"><span className="mr-1 text-[#0e8f83]">▾</span> Evidence · {brief.analysis ? "received" : "awaiting request"}</p><p className="mt-1 sm:mt-0 sm:text-right"><span className="mr-1 text-[#0e8f83]">▾</span> {brief.exchange !== "—" ? `Exchange · ${brief.exchange}` : `Status · ${isResearching ? "researching" : "ready"}`}</p></div>
               </div>
             </section>
 
@@ -266,7 +268,7 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto mt-4 flex max-w-[1580px] flex-col justify-between gap-2 border-t border-[#ddd6cb] px-4 py-5 text-[11px] text-[#78817c] sm:flex-row sm:px-6 lg:px-8">
-        <p>Dashboard interface only. Agent logic, xAI/Grok integration, YFinance, and search tools remain unchanged.</p>
+        <p>Dashboard interface only. Agent logic runs through Groq with AgentOS, YFinance, and web/news search tools.</p>
         <p className="font-mono">{connection === "ready" ? connectionNote : "AgentOS endpoint requires attention"}</p>
       </footer>
 
@@ -274,7 +276,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-[#1c2726]/35 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label="AgentOS connection settings">
           <div className="w-full max-w-md border border-[#d6cec2] bg-[#fffdf9] p-5 shadow-[0_24px_60px_rgba(18,29,28,.25)]">
             <div className="flex items-start justify-between gap-4"><div><p className="ledger-label">Connection settings</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em]">AgentOS endpoint</h2></div><button type="button" onClick={() => setSettingsOpen(false)} className="text-[#68716d] hover:text-[#1e2928]" aria-label="Close settings"><X className="size-5" /></button></div>
-            <p className="mt-3 text-sm leading-relaxed text-[#69716e]">This frontend sends multipart requests to the existing AgentOS API. For local development, the verified endpoint is <code className="bg-[#f1ede5] px-1 font-mono text-xs">http://localhost:7777</code>.</p>
+            <p className="mt-3 text-sm leading-relaxed text-[#69716e]">This frontend sends multipart requests to the existing AgentOS API. Local development defaults to the same-origin <code className="bg-[#f1ede5] px-1 font-mono text-xs">/agentos</code> route, which forwards to the verified backend at <code className="bg-[#f1ede5] px-1 font-mono text-xs">http://127.0.0.1:7777</code>. For a separately hosted AgentOS service, enter its public base URL here.</p>
             <label className="mt-5 block"><span className="ledger-label">Base URL</span><input value={endpointDraft} onChange={(event) => setEndpointDraft(event.target.value)} className="mt-2 w-full border border-[#cfc7bb] bg-[#fffefb] px-3 py-3 font-mono text-sm text-[#283230] outline-none focus:border-[#0e8f83] focus:ring-2 focus:ring-[#0e8f83]/10" /></label>
             <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setSettingsOpen(false)} className="px-4 py-2.5 text-sm font-semibold text-[#66706b] hover:text-[#1e2928]">Cancel</button><button type="button" onClick={saveEndpoint} className="bg-[#1e2928] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0e8f83]">Save & test</button></div>
           </div>
