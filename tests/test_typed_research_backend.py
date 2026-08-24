@@ -165,17 +165,104 @@ async def verify_entity_validation_and_ambiguity() -> None:
     assert resolved.company and resolved.company.symbol == "AAPL"
     assert resolved.company.identifier_confidence == IdentifierConfidence.HIGH
 
-    ambiguous = EntityResolutionService()
-    ambiguous._search_candidates = lambda _query: [
-        CompanyCandidate(symbol="APLE", name="Apple Hospitality REIT", exchange="NYQ", quote_type="EQUITY"),
-        CompanyCandidate(symbol="AAPL", name="Apple Inc.", exchange="NMS", quote_type="EQUITY"),
+    company_name_cases = {
+        "Apple": (
+            [
+                CompanyCandidate(symbol="AAPL", name="Apple Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="APLE", name="Apple Hospitality REIT, Inc.", exchange="NYQ", quote_type="EQUITY"),
+                CompanyCandidate(symbol="APC.DE", name="Apple Inc.", exchange="GER", quote_type="EQUITY"),
+            ],
+            "AAPL",
+        ),
+        "Tesla": (
+            [
+                CompanyCandidate(symbol="TSLA", name="Tesla, Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TL0.F", name="Tesla, Inc.", exchange="FRA", quote_type="EQUITY"),
+            ],
+            "TSLA",
+        ),
+        "Tesla, Inc.": (
+            [
+                CompanyCandidate(symbol="TSLA", name="Tesla, Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TL0.F", name="Tesla, Inc.", exchange="FRA", quote_type="EQUITY"),
+            ],
+            "TSLA",
+        ),
+        "Tesla, Inc. TSLA": (
+            [
+                CompanyCandidate(symbol="TSLA", name="Tesla, Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TL0.DE", name="Tesla, Inc.", exchange="GER", quote_type="EQUITY"),
+            ],
+            "TSLA",
+        ),
+        "Microsoft": (
+            [
+                CompanyCandidate(symbol="MSFT", name="Microsoft Corporation", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="MSF.DE", name="Microsoft Corporation", exchange="GER", quote_type="EQUITY"),
+            ],
+            "MSFT",
+        ),
+        "NVIDIA": (
+            [
+                CompanyCandidate(symbol="NVDA", name="NVIDIA Corporation", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="NVDC34.SA", name="NVIDIA Corporation", exchange="SAO", quote_type="EQUITY"),
+            ],
+            "NVDA",
+        ),
+        "Google": (
+            [
+                CompanyCandidate(symbol="GOOG", name="Alphabet Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="GOOP", name="Kurv Yield Premium Strategy Google ETF", exchange="BTS", quote_type="ETF"),
+            ],
+            "GOOG",
+        ),
+        "Amazon": (
+            [
+                CompanyCandidate(symbol="AMZN", name="Amazon.com, Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="AZFL", name="Amazonas Florestal, Ltd", exchange="PNK", quote_type="EQUITY"),
+            ],
+            "AMZN",
+        ),
+        "Meta": (
+            [
+                CompanyCandidate(symbol="META", name="Meta Platforms, Inc.", exchange="NMS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="MTA.V", name="Metalla Royalty & Streaming Ltd.", exchange="VAN", quote_type="EQUITY"),
+            ],
+            "META",
+        ),
+        "Reliance Industries": (
+            [
+                CompanyCandidate(symbol="RELIANCE.NS", name="Reliance Industries Limited", exchange="NSI", quote_type="EQUITY"),
+                CompanyCandidate(symbol="RELIANCE.BO", name="Reliance Industries Limited", exchange="BSE", quote_type="EQUITY"),
+            ],
+            "RELIANCE.NS",
+        ),
+        "Tata Motors": (
+            [
+                CompanyCandidate(symbol="TMCV.NS", name="Tata Motors Limited", exchange="NSI", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TMPV.NS", name="Tata Motors Passenger Vehicles Limited", exchange="NSI", quote_type="EQUITY"),
+            ],
+            "TMCV.NS",
+        ),
+    }
+    for query, (candidates, expected_symbol) in company_name_cases.items():
+        resolver = EntityResolutionService()
+        resolver._search_candidates = lambda _query, candidates=candidates: candidates
+        resolved = await resolver.resolve(query)
+        assert resolved.company and resolved.company.symbol == expected_symbol, query
+        assert resolved.company.identifier_confidence == IdentifierConfidence.HIGH, query
+
+    genuinely_ambiguous = EntityResolutionService()
+    genuinely_ambiguous._search_candidates = lambda _query: [
+        CompanyCandidate(symbol="ACM1", name="Acme Holdings, Inc.", exchange="NMS", quote_type="EQUITY"),
+        CompanyCandidate(symbol="ACM2", name="Acme Technologies, Inc.", exchange="NMS", quote_type="EQUITY"),
     ]
     try:
-        await ambiguous.resolve("Apple")
+        await genuinely_ambiguous.resolve("Acme")
     except ResearchError as error:
         assert error.category == ErrorCategory.AMBIGUOUS_ENTITY
     else:
-        raise AssertionError("ambiguous company must not silently select the first candidate")
+        raise AssertionError("equally strong company-name candidates must remain ambiguous")
 
     invalid = EntityResolutionService()
     invalid._search_candidates = lambda _query: []

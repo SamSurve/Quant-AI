@@ -64,6 +64,44 @@ def _normalized_name(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]", "", (value or "").lower())
 
 
+_CORPORATE_SUFFIXES = frozenset({"ag", "co", "corp", "corporation", "inc", "incorporated", "limited", "llc", "ltd", "nv", "plc", "sa"})
+_COMPANY_NAME_ALIASES = {"google": frozenset({"alphabet"})}
+_PREFERRED_EXCHANGES = ("NMS", "NYQ", "NGM", "NSI", "BSE")
+
+
+def _canonical_company_name(value: str | None) -> str:
+    """Compare company labels while ignoring only trailing legal-form suffixes."""
+
+    tokens = re.findall(r"[a-z0-9]+", (value or "").lower())
+    while tokens and tokens[-1] in _CORPORATE_SUFFIXES:
+        tokens.pop()
+    return "".join(tokens)
+
+
+def _terminal_ticker(value: str) -> str | None:
+    """Return a final explicit ticker token without treating arbitrary name words as symbols."""
+
+    parts = value.strip().split()
+    if len(parts) < 2:
+        return None
+    candidate = _normalize_symbol(parts[-1])
+    return candidate if re.fullmatch(r"[A-Z0-9.-]{1,12}", candidate) else None
+
+
+def _select_preferred_listing(candidates: list[CompanyCandidate]) -> CompanyCandidate | None:
+    """Choose only a unique listing from an explicit exchange preference, never list rank."""
+
+    if len(candidates) == 1:
+        return candidates[0]
+    for exchange in _PREFERRED_EXCHANGES:
+        exchange_matches = [candidate for candidate in candidates if candidate.exchange == exchange]
+        if len(exchange_matches) == 1:
+            return exchange_matches[0]
+        if len(exchange_matches) > 1:
+            return None
+    return None
+
+
 @dataclass(frozen=True)
 class EntityResolution:
     company: CompanyIdentity | None
@@ -180,10 +218,44 @@ class EntityResolutionService:
         if len(direct) == 1:
             return direct[0], IdentifierConfidence.HIGH
 
+        terminal_ticker = _terminal_ticker(query)
+        terminal_ticker_matches = [candidate for candidate in candidates if candidate.symbol == terminal_ticker]
+        if terminal_ticker and len(terminal_ticker_matches) == 1:
+            return terminal_ticker_matches[0], IdentifierConfidence.HIGH
+
         normalized_query_name = _normalized_name(query)
         exact_name = [candidate for candidate in candidates if _normalized_name(candidate.name) == normalized_query_name]
         if len(exact_name) == 1:
             return exact_name[0], IdentifierConfidence.HIGH
+
+        canonical_query_name = _canonical_company_name(query)
+        canonical_name = [
+            candidate
+            for candidate in candidates
+            if canonical_query_name and _canonical_company_name(candidate.name) == canonical_query_name
+        ]
+        preferred_canonical_name = _select_preferred_listing(canonical_name)
+        if preferred_canonical_name:
+            return preferred_canonical_name, IdentifierConfidence.HIGH
+
+        alias_targets = _COMPANY_NAME_ALIASES.get(canonical_query_name, frozenset())
+        alias_name = [
+            candidate
+            for candidate in candidates
+            if _canonical_company_name(candidate.name) in alias_targets
+        ]
+        preferred_alias_name = _select_preferred_listing(alias_name)
+        if preferred_alias_name:
+            return preferred_alias_name, IdentifierConfidence.HIGH
+
+        prefix_name = [
+            candidate
+            for candidate in candidates
+            if canonical_query_name and _canonical_company_name(candidate.name).startswith(canonical_query_name)
+        ]
+        preferred_prefix_name = _select_preferred_listing(prefix_name)
+        if preferred_prefix_name:
+            return preferred_prefix_name, IdentifierConfidence.HIGH
 
         # Do not silently select the ranked first result for company-name searches.
         # A single fuzzy candidate is useful but is marked medium confidence.
