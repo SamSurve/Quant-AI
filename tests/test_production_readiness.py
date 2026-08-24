@@ -35,6 +35,8 @@ def check_deployment_files() -> None:
         for rewrite in config["rewrites"]
     )
     assert "-r " not in (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    assert "openai" in requirements
     assert (ROOT / ".python-version").read_text(encoding="utf-8").strip() == "3.12"
 
     deployment_ignore = (ROOT / ".vercelignore").read_text(encoding="utf-8")
@@ -42,9 +44,15 @@ def check_deployment_files() -> None:
         assert required_pattern in deployment_ignore
 
     deployment_docs = (ROOT / "VERCEL_DEPLOYMENT.md").read_text(encoding="utf-8")
-    assert "AI_PROVIDER=auto" in deployment_docs
-    assert "GEMINI_API_KEY" in deployment_docs
-    assert "GROQ_API_KEY" in deployment_docs
+    for required_variable in (
+        "GROQ_API_KEY_PRIMARY",
+        "GROQ_MODEL_PRIMARY",
+        "GROQ_API_KEY_SECONDARY",
+        "GROQ_MODEL_SECONDARY",
+        "OPENROUTER_API_KEY",
+        "OPENROUTER_MODEL",
+    ):
+        assert required_variable in deployment_docs
 
 
 def check_agentos_routes() -> None:
@@ -56,8 +64,9 @@ def check_agentos_routes() -> None:
         health = client.get("/api/health").json()
         assert health["agent_id"] == "groq-finance-agent"
         assert "provider_runtime" in health
-        assert "GEMINI_API_KEY" not in json.dumps(health)
-        assert "GROQ_API_KEY" not in json.dumps(health)
+        assert "GROQ_API_KEY_PRIMARY" not in json.dumps(health)
+        assert "GROQ_API_KEY_SECONDARY" not in json.dumps(health)
+        assert "OPENROUTER_API_KEY" not in json.dumps(health)
 
 
 def check_missing_provider_behavior() -> None:

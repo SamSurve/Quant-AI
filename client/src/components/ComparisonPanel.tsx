@@ -1,0 +1,71 @@
+/**
+ * Research Observatory visual contract: paired evidence stays legible before
+ * interpretation, with a genuine mobile metric presentation rather than a
+ * horizontally forced desktop table.
+ */
+
+import { ArrowRight, Scale, ShieldAlert } from "lucide-react";
+import { categoryLabel, comparisonLabel, comparisonValue, winnerLabel, type ComparisonReport } from "@/lib/comparison";
+
+type ComparisonPanelProps = {
+  report: ComparisonReport | null;
+  isLoading: boolean;
+};
+
+function winnerClass(winner: ComparisonReport["overall_advantage"]) {
+  if (winner === "A" || winner === "B") return "border-[color-mix(in_oklab,var(--positive)_42%,var(--rule))] bg-[color-mix(in_oklab,var(--positive)_10%,var(--surface))] text-[var(--positive)]";
+  if (winner === "TIE") return "border-[var(--rule-strong)] bg-[var(--surface-subtle)] text-[var(--ink-soft)]";
+  return "border-[color-mix(in_oklab,var(--negative)_38%,var(--rule))] bg-[color-mix(in_oklab,var(--negative)_7%,var(--surface))] text-[var(--negative)]";
+}
+
+export function ComparisonPanel({ report, isLoading }: ComparisonPanelProps) {
+  if (!report && !isLoading) return null;
+  if (isLoading) {
+    return <section id="comparison" className="ledger-panel overflow-hidden"><div className="border-b border-[var(--rule)] px-5 py-4 sm:px-6"><p className="ledger-label">Company comparison</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[var(--ink)]">Preparing independent evidence lanes</h2><p className="mt-2 text-xs text-[var(--ink-soft)]">Resolving identities and validating comparable source records.</p></div><div className="space-y-3 p-5 sm:p-6"><div className="shimmer-line h-12 w-full" /><div className="shimmer-line h-12 w-[92%]" /><div className="shimmer-line h-12 w-[84%]" /></div></section>;
+  }
+  if (!report) return null;
+  const aTicker = report.company_a.ticker;
+  const bTicker = report.company_b.ticker;
+  const interpretation = report.analyst_interpretation;
+  return (
+    <section id="comparison" className="ledger-panel overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--rule)] px-5 py-4 sm:px-6">
+        <div className="flex items-start gap-2"><span className="ledger-aperture mt-0.5 grid size-4 place-items-center"><Scale className="size-3 text-[var(--provenance)]" /></span><div><p className="ledger-label">Company comparison</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[var(--ink)]">{aTicker} <span className="font-sans text-sm tracking-normal text-[var(--ink-faint)]">vs</span> {bTicker}</h2><p className="mt-1 text-xs text-[var(--ink-soft)]">Two evidence lanes, one disciplined read.</p></div></div>
+        <span className={`border px-3 py-2 font-mono text-[11px] font-bold ${winnerClass(report.overall_advantage)}`}>{winnerLabel(report.overall_advantage, aTicker, bTicker)}</span>
+      </div>
+
+      <div className="grid divide-y divide-[#e5ded3] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+        {[{ side: "A", company: report.company_a, status: report.company_a_status, market: report.market_a, score: report.financial_strength.company_a_score, momentum: report.momentum.company_a_score }, { side: "B", company: report.company_b, status: report.company_b_status, market: report.market_b, score: report.financial_strength.company_b_score, momentum: report.momentum.company_b_score }].map(({ side, company, status, market, score, momentum }) => (
+          <div key={company.ticker} className="p-5 sm:p-6">
+            <p className="ledger-label">Company {side} · verified identity</p>
+            <div className="mt-2 flex items-end justify-between gap-3"><div><h3 className="font-serif text-2xl tracking-[-0.04em] text-[#1f2b2a]">{company.ticker}</h3><p className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#68716d]">{company.company_name || "Company name unavailable"}</p></div><p className="font-mono text-xl font-semibold tabular-nums text-[#1f2b2a]">{market?.current_price === null || market?.current_price === undefined ? "—" : `${market.currency || company.currency || ""} ${market.current_price.toLocaleString()}`}</p></div>
+            <p className="mt-3 text-xs leading-relaxed text-[#6a736e]">{[company.sector, company.industry, company.exchange].filter(Boolean).join(" · ") || "Structured profile information unavailable."}</p><p className={`mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${status.overall === "available" ? "text-[#0e756b]" : status.overall === "partial" ? "text-[#8b6d3f]" : "text-[#934b3d]"}`}>{status.overall} · <span className="normal-case font-normal tracking-normal">{status.message}</span></p>
+            <div className="mt-4 grid grid-cols-2 gap-px bg-[#e5ded3]"><div className="bg-[#fffdf9] p-3"><p className="ledger-label">Financial strength</p><p className="mt-1 font-mono text-lg font-semibold text-[#1f2b2a]">{score ?? "—"}</p></div><div className="bg-[#fffdf9] p-3"><p className="ledger-label">Momentum</p><p className="mt-1 font-mono text-lg font-semibold text-[#1f2b2a]">{momentum ?? "—"}</p></div></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-[#e2dbd0] px-5 py-4 sm:px-6"><p className="ledger-label">Comparison ledger · deterministic</p><p className="mt-1 text-xs leading-relaxed text-[#6b746f]">Absolute values are intentionally not ranked across different currencies or unaligned reporting periods.</p></div>
+      <div className="border-y border-[var(--rule)] md:hidden">
+        {report.metrics.map((metric) => <article key={metric.metric} className="border-b border-[var(--rule)] px-5 py-4 last:border-b-0"><div className="flex items-start justify-between gap-3"><h3 className="text-sm font-semibold text-[var(--ink)]">{comparisonLabel(metric.metric)}</h3><span className={`shrink-0 border px-2 py-1 font-mono text-[10px] font-bold ${winnerClass(metric.winner)}`}>{winnerLabel(metric.winner, aTicker, bTicker)}</span></div><div className="mt-3 grid grid-cols-2 gap-3"><div><p className="ledger-label">{aTicker}</p><p className="mt-1 font-mono text-sm tabular-nums text-[var(--ink)]">{comparisonValue(metric.company_a_value, metric.unit, metric.currency)}</p></div><div><p className="ledger-label">{bTicker}</p><p className="mt-1 font-mono text-sm tabular-nums text-[var(--ink)]">{comparisonValue(metric.company_b_value, metric.unit, metric.currency)}</p></div></div><p className="mt-3 text-[10px] uppercase tracking-[0.08em] text-[var(--ink-faint)]">{metric.period_alignment.replaceAll("_", " ")}</p><p className={`mt-1 text-xs leading-relaxed ${metric.note ? "text-[var(--negative)]" : "text-[var(--ink-soft)]"}`}>{metric.note || `${metric.provenance_a?.source || "Source unavailable"}${metric.provenance_b?.source ? ` / ${metric.provenance_b.source}` : ""}`}</p></article>)}
+      </div>
+      <div className="hidden overflow-x-auto border-y border-[var(--rule)] md:block"><table className="w-full min-w-[820px] border-collapse text-left text-xs"><thead className="bg-[var(--surface-subtle)] text-[var(--ink-soft)]"><tr className="ledger-label"><th className="px-5 py-3 font-bold">Metric</th><th className="px-4 py-3 font-bold">{aTicker}</th><th className="px-4 py-3 font-bold">{bTicker}</th><th className="px-4 py-3 font-bold">Winner</th><th className="px-5 py-3 font-bold">Alignment / evidence</th></tr></thead><tbody className="divide-y divide-[var(--rule)] bg-[var(--surface)]">{report.metrics.map((metric) => <tr key={metric.metric} className="align-top"><th className="px-5 py-3 font-semibold capitalize text-[var(--ink)]">{comparisonLabel(metric.metric)}</th><td className="px-4 py-3 font-mono tabular-nums text-[var(--ink)]">{comparisonValue(metric.company_a_value, metric.unit, metric.currency)}</td><td className="px-4 py-3 font-mono tabular-nums text-[var(--ink)]">{comparisonValue(metric.company_b_value, metric.unit, metric.currency)}</td><td className="px-4 py-3"><span className={`inline-flex border px-2 py-1 font-mono text-[10px] font-bold ${winnerClass(metric.winner)}`}>{winnerLabel(metric.winner, aTicker, bTicker)}</span></td><td className="px-5 py-3 text-[var(--ink-soft)]"><p>{metric.period_alignment.replaceAll("_", " ")}</p>{metric.note ? <p className="mt-1 max-w-xs text-[var(--negative)]">{metric.note}</p> : <p className="mt-1 max-w-xs">{metric.provenance_a?.source || "Source unavailable"}{metric.provenance_b?.source ? ` / ${metric.provenance_b.source}` : ""}</p>}</td></tr>)}</tbody></table></div>
+
+      <div className="grid gap-0 divide-y divide-[#e5ded3] lg:grid-cols-[1.1fr_.9fr] lg:divide-x lg:divide-y-0">
+        <div className="p-5 sm:p-6"><p className="ledger-label">Category outcomes</p><div className="mt-4 space-y-0 border-y border-[#e5ded3]">{report.category_winners.map((category) => <div key={category.category} className="grid gap-2 border-b border-[#e5ded3] py-3 last:border-b-0 sm:grid-cols-[minmax(145px,.8fr)_auto_1.5fr] sm:items-center"><p className="capitalize text-sm font-semibold text-[#40504a]">{categoryLabel(category.category)}</p><span className={`w-fit border px-2 py-1 font-mono text-[10px] font-bold ${winnerClass(category.winner)}`}>{winnerLabel(category.winner, aTicker, bTicker)}</span><p className="text-xs leading-relaxed text-[#69726d]">{category.explanation}</p></div>)}</div></div>
+        <div className="bg-[#fbf9f4] p-5 sm:p-6"><p className="ledger-label">Confidence protocol</p><p className="mt-2 font-serif text-3xl tracking-[-0.05em] text-[#1d2928]">{report.comparison_confidence.score ?? "—"}<span className="ml-2 font-sans text-xs font-semibold uppercase tracking-[0.1em] text-[#0e8f83]">{report.comparison_confidence.level}</span></p><p className="mt-4 text-sm leading-relaxed text-[#4f5b56]">{report.overall_explanation}</p><ul className="mt-4 space-y-2 border-l border-[#b9ded7] pl-4 text-xs leading-relaxed text-[#63706a]">{report.comparison_confidence.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="mt-4 text-[10px] leading-relaxed text-[#7a827e]">{report.competitive_data_note}</p></div>
+      </div>
+
+      <div className="grid gap-0 divide-y divide-[#e5ded3] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+        <div className="p-5 sm:p-6"><p className="ledger-label">Analyst comparison brief · interpretation</p><p className="mt-3 font-serif text-lg leading-snug text-[#293632]">{interpretation?.executive_summary || "AI interpretation unavailable. The deterministic comparison ledger remains available above."}</p><p className="mt-4 text-sm leading-relaxed text-[#56615c]">{interpretation?.key_difference || "Insufficient verified data."}</p><div className="mt-4 grid gap-4 sm:grid-cols-2"><div><p className="ledger-label">{aTicker} strengths</p><ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-[#5b665f]">{(interpretation?.company_a_strengths || []).map((item) => <li key={item}>— {item}</li>)}</ul></div><div><p className="ledger-label">{bTicker} strengths</p><ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-[#5b665f]">{(interpretation?.company_b_strengths || []).map((item) => <li key={item}>— {item}</li>)}</ul></div></div></div>
+        <div className="p-5 sm:p-6"><p className="ledger-label">What to watch · interpretation</p><ul className="mt-3 space-y-2 border-l border-[#e3c0b9] pl-4 text-sm leading-relaxed text-[#6a4a43]">{(interpretation?.important_risks || []).map((item) => <li key={item}>{item}</li>)}{(interpretation?.what_to_watch || []).map((item) => <li key={item}>{item}</li>)}</ul>{!(interpretation?.important_risks.length || interpretation?.what_to_watch.length) ? <p className="mt-3 text-sm text-[#6f7873]">Insufficient verified data.</p> : null}<p className="mt-5 flex items-center gap-2 text-xs text-[#707a75]"><ShieldAlert className="size-3.5 text-[#bd4b38]" /> Interpretation is not a recommendation, prediction, or price target.</p></div>
+      </div>
+
+      <div className="grid divide-y divide-[#e5ded3] lg:grid-cols-2 lg:divide-x lg:divide-y-0"><EvidenceLane label={`${aTicker} news & events`} news={report.company_a_news} events={report.company_a_events} /><EvidenceLane label={`${bTicker} news & events`} news={report.company_b_news} events={report.company_b_events} /></div>
+    </section>
+  );
+}
+
+function EvidenceLane({ label, news, events }: { label: string; news: ComparisonReport["company_a_news"]; events: ComparisonReport["company_a_events"] }) {
+  return <div className="p-5 sm:p-6"><p className="ledger-label">{label}</p><div className="mt-3 space-y-0 border-t border-[#e5ded3]">{[...news.slice(0, 3).map((item) => ({ title: item.title, detail: item.publisher || "Source unavailable", href: item.url })), ...events.slice(0, 2).map((item) => ({ title: item.title, detail: item.date || item.source || "Event source unavailable", href: undefined }))].map((item, index) => <div key={`${item.title}-${index}`} className="grid grid-cols-[auto_1fr] gap-x-3 border-b border-[#e5ded3] py-3"><span className="font-mono text-[10px] text-[#0e8f83]">0{index + 1}</span><div><p className="text-xs leading-relaxed text-[#45514c]">{item.title}</p><p className="mt-1 text-[10px] text-[#75807a]">{item.detail}{item.href ? <a href={item.href} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-[#0e8f83] hover:underline">Source <ArrowRight className="size-2.5" /></a> : null}</p></div></div>)}{!(news.length || events.length) ? <p className="py-3 text-xs text-[#747c78]">No sourced news or event record was returned for this lane.</p> : null}</div></div>;
+}

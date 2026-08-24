@@ -1,7 +1,9 @@
 /**
- * Analyst's Ledger style contract: convert agent-authored markdown into optional dashboard surfaces.
- * Values are never invented; missing fields remain intentionally unavailable.
+ * Analyst's Ledger style contract: render typed BFF research data directly.
+ * Markdown parsing remains only for legacy conversational AgentOS responses.
  */
+
+import type { TypedResearchResponse } from "@/lib/research";
 
 export type Metric = { label: string; value: string; tone?: "neutral" | "positive" | "negative" };
 export type ChartPoint = { label: string; value: number };
@@ -17,6 +19,30 @@ export type MarketBrief = {
   news: string[];
   chart: ChartPoint[];
   analysis: string;
+  signal: { label: string; score: string; confidence: string; factors: string[]; explanation: string; methodology: string } | null;
+  events: Array<{ title: string; date: string; importance: string; source: string }>;
+  sources: Array<{ source: string; url: string | null; dataType: string; retrievedAt: string }>;
+  warnings: Array<{ category: string; message: string }>;
+  freshness: Array<{ label: string; state: string; asOf: string }>;
+  deepAnalysis: {
+    overview: Array<{ label: string; value: string }>;
+    financials: Metric[];
+    governance: { ceo: string; leadership: string[]; note: string };
+    competitors: { note: string; items: string[] };
+    interpretation: {
+      businessModel: string;
+      financialHealth: string;
+      growthDrivers: string[];
+      competitivePosition: string;
+      risks: string[];
+      catalysts: string[];
+      valuation: { classification: string; rationale: string; evidence: string[] };
+      recentDevelopments: string[];
+      whatToWatch: string[];
+      assessment: string;
+      confidence: string;
+    } | null;
+  } | null;
 };
 
 type MarkdownTable = { headers: string[]; rows: string[][] };
@@ -172,6 +198,12 @@ export function parseMarketBrief(markdown: string): MarketBrief {
     news: extractNews(markdown),
     chart: extractChart(tables),
     analysis: markdown,
+    signal: null,
+    events: [],
+    sources: [],
+    warnings: [],
+    freshness: [],
+    deepAnalysis: null,
   };
 }
 
@@ -187,4 +219,143 @@ export const emptyMarketBrief: MarketBrief = {
   news: [],
   chart: [],
   analysis: "",
+  signal: null,
+  events: [],
+  sources: [],
+  warnings: [],
+  freshness: [],
+  deepAnalysis: null,
 };
+
+function numberLabel(value: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "—"
+    : new Intl.NumberFormat(undefined, options).format(value);
+}
+
+function moneyLabel(value: number | null | undefined, currency?: string | null) {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "—"
+    : new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD", maximumFractionDigits: 2 }).format(value);
+}
+
+function compactMoneyLabel(value: number | null | undefined, currency?: string | null) {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "—"
+    : new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD", notation: "compact", maximumFractionDigits: 2 }).format(value);
+}
+
+function typedAnalysisMarkdown(research: TypedResearchResponse) {
+  const deep = research.company_deep_analysis?.analyst_interpretation;
+  if (deep) {
+    const section = (heading: string, values: string[]) => (values.length ? `\n\n## ${heading}\n${values.map((value) => `- ${value}`).join("\n")}` : "");
+    return [
+      deep.executive_summary ? `## Executive Assessment\n${deep.executive_summary}` : "",
+      deep.business_model ? `\n\n## Business Model\n${deep.business_model}` : "",
+      deep.financial_health ? `\n\n## Financial Health\n${deep.financial_health}` : "",
+      section("Growth Drivers", deep.growth_drivers),
+      deep.competitive_position ? `\n\n## Competitive Position\n${deep.competitive_position}` : "",
+      section("Key Risks — Analyst Interpretation", deep.key_risks),
+      section("Catalysts", deep.catalysts),
+      deep.valuation_view ? `\n\n## Valuation View — Analyst Interpretation\n${deep.valuation_view.classification}${deep.valuation_view.rationale ? ` · ${deep.valuation_view.rationale}` : ""}` : "",
+      section("Recent Developments", deep.recent_developments),
+      section("What to Watch", deep.what_to_watch),
+      deep.overall_assessment ? `\n\n## Overall Assessment\n${deep.overall_assessment}` : "",
+    ].filter(Boolean).join("\n");
+  }
+  const analysis = research.market_intelligence?.executive_brief || research.analysis;
+  if (!analysis) return "";
+  const section = (heading: string, values: string[]) => (values.length ? `\n\n## ${heading}\n${values.map((value) => `- ${value}`).join("\n")}` : "");
+  return [
+    analysis.executive_summary ? `## Executive Summary\n${analysis.executive_summary}` : "",
+    analysis.what_is_happening ? `\n\n## What is happening\n${analysis.what_is_happening}` : "",
+    section("Bullish Factors", analysis.bullish_factors),
+    section("Bearish Factors", analysis.bearish_factors),
+    section("Risks", analysis.risks),
+    section("Catalysts", analysis.catalysts),
+    section("What to Watch", analysis.what_to_watch || []),
+    analysis.market_sentiment ? `\n\n## Market Sentiment\n${analysis.market_sentiment}` : "",
+    analysis.ai_verdict ? `\n\n## AI Verdict\n${analysis.ai_verdict}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function marketBriefFromResearch(research: TypedResearchResponse): MarketBrief {
+  const intelligence = research.market_intelligence;
+  const deep = research.company_deep_analysis;
+  const market = intelligence?.market_pulse || deep?.market_context || research.market;
+  const currency = research.company?.currency;
+  const change = market?.daily_change_percent;
+  return {
+    companyName: research.company?.name || "—",
+    ticker: research.company?.symbol || "—",
+    exchange: research.company?.exchange || "—",
+    sector: research.company?.sector || "—",
+    industry: research.company?.industry || "—",
+    quote: moneyLabel(market?.current_price, currency),
+    change: change === null || change === undefined ? "—" : `${change >= 0 ? "+" : ""}${numberLabel(change, { maximumFractionDigits: 2 })}%`,
+    metrics: [
+      { label: "Market cap", value: compactMoneyLabel(market?.market_cap, currency) },
+      { label: "P / E ratio", value: numberLabel(market?.pe_ratio, { maximumFractionDigits: 2 }) },
+      { label: "52-week high", value: moneyLabel(market?.fifty_two_week_high, currency) },
+      { label: "52-week low", value: moneyLabel(market?.fifty_two_week_low, currency) },
+      { label: "Volume", value: numberLabel(market?.volume, { notation: "compact", maximumFractionDigits: 2 }) },
+      { label: "Dividend yield", value: market?.dividend_yield === null || market?.dividend_yield === undefined ? "—" : `${numberLabel(market.dividend_yield * 100, { maximumFractionDigits: 2 })}%` },
+    ].map((metric) => ({ ...metric, tone: "neutral" as const })),
+    news: (intelligence?.recent_news || deep?.recent_news || research.news).map((item) => [item.publisher, item.sentiment ? item.sentiment.toUpperCase() : null, item.title].filter(Boolean).join(" · ")),
+    chart: (intelligence?.price_history?.daily.slice(-60) || research.history)
+      .filter((point) => point.close !== null && point.close !== undefined)
+      .map((point) => ({ label: point.timestamp.slice(0, 10), value: point.close as number })),
+    analysis: typedAnalysisMarkdown(research),
+    signal: intelligence?.market_signal ? {
+      label: intelligence.market_signal.signal || "UNAVAILABLE",
+      score: intelligence.market_signal.score === null || intelligence.market_signal.score === undefined ? "—" : `${intelligence.market_signal.score}/100`,
+      confidence: intelligence.market_signal.confidence === null || intelligence.market_signal.confidence === undefined ? "—" : `${intelligence.market_signal.confidence}/100`,
+      factors: intelligence.market_signal.factors,
+      explanation: intelligence.market_signal.explanation || "Deterministic signal data is unavailable.",
+      methodology: intelligence.market_signal.methodology,
+    } : null,
+    events: (intelligence?.event_radar || deep?.events || research.events || []).map((event) => ({
+      title: event.title,
+      date: event.date ? event.date.slice(0, 10) : "Date unavailable",
+      importance: event.importance,
+      source: event.source || "Source unavailable",
+    })),
+    sources: research.sources.map((source) => ({ source: source.source, url: source.url || null, dataType: source.data_type, retrievedAt: source.retrieved_at })),
+    warnings: research.warnings.map((warning) => ({ category: warning.category, message: warning.message })),
+    freshness: intelligence ? Object.entries(intelligence.freshness).map(([label, value]) => ({ label, state: value.state, asOf: value.as_of || value.retrieved_at || "Unavailable" })) : deep ? Object.entries(deep.freshness).map(([label, value]) => ({ label, state: value.state, asOf: value.as_of || value.retrieved_at || "Unavailable" })) : [],
+    deepAnalysis: deep ? {
+      overview: [
+        ["Company", deep.company_overview?.company_name], ["Ticker", deep.company_overview?.ticker], ["Exchange", deep.company_overview?.exchange], ["Sector", deep.company_overview?.sector], ["Industry", deep.company_overview?.industry], ["Country", deep.company_overview?.country], ["Headquarters", deep.company_overview?.headquarters], ["Employees", numberLabel(deep.company_overview?.employees)], ["Website", deep.company_overview?.website],
+      ].filter((item): item is [string, string] => Boolean(item[1])).map(([label, value]) => ({ label, value })),
+      financials: [
+        { label: "Revenue", value: compactMoneyLabel(deep.financial_health?.revenue, deep.financial_health?.currency) },
+        { label: "Net income", value: compactMoneyLabel(deep.financial_health?.net_income, deep.financial_health?.currency) },
+        { label: "Free cash flow", value: compactMoneyLabel(deep.financial_health?.free_cash_flow, deep.financial_health?.currency) },
+        { label: "Total cash", value: compactMoneyLabel(deep.financial_health?.total_cash, deep.financial_health?.currency) },
+        { label: "Total debt", value: compactMoneyLabel(deep.financial_health?.total_debt, deep.financial_health?.currency) },
+        { label: "Operating margin", value: deep.financial_health?.operating_margin == null ? "—" : `${numberLabel(deep.financial_health.operating_margin * 100, { maximumFractionDigits: 2 })}%` },
+        { label: "P / Sales", value: numberLabel(deep.financial_health?.price_to_sales, { maximumFractionDigits: 2 }) },
+        { label: "ROE", value: deep.financial_health?.return_on_equity == null ? "—" : `${numberLabel(deep.financial_health.return_on_equity * 100, { maximumFractionDigits: 2 })}%` },
+      ],
+      governance: {
+        ceo: deep.governance?.ceo ? [deep.governance.ceo.name, deep.governance.ceo.title].filter(Boolean).join(" · ") : "Insufficient verified data.",
+        leadership: (deep.governance?.key_leadership || []).map((person) => [person.name, person.title].filter(Boolean).join(" · ")),
+        note: (deep.governance?.notable_developments || []).join(" ") || "No sourced management-change assertion is shown.",
+      },
+      competitors: { note: deep.competitive_evidence.note, items: deep.competitive_evidence.competitors },
+      interpretation: deep.analyst_interpretation ? {
+        businessModel: deep.analyst_interpretation.business_model || "Insufficient verified data.",
+        financialHealth: deep.analyst_interpretation.financial_health || "Insufficient verified data.",
+        growthDrivers: deep.analyst_interpretation.growth_drivers,
+        competitivePosition: deep.analyst_interpretation.competitive_position || "Insufficient verified data.",
+        risks: deep.analyst_interpretation.key_risks,
+        catalysts: deep.analyst_interpretation.catalysts,
+        valuation: { classification: deep.analyst_interpretation.valuation_view.classification, rationale: deep.analyst_interpretation.valuation_view.rationale || "Insufficient verified data.", evidence: deep.analyst_interpretation.valuation_view.evidence },
+        recentDevelopments: deep.analyst_interpretation.recent_developments,
+        whatToWatch: deep.analyst_interpretation.what_to_watch,
+        assessment: deep.analyst_interpretation.overall_assessment || "Insufficient verified data.",
+        confidence: deep.analyst_interpretation.confidence || "Unavailable",
+      } : null,
+    } : null,
+  };
+}

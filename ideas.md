@@ -90,3 +90,34 @@ The mark is an **offset aperture**: two stacked, inset ledger brackets pierced b
 - Unavailable data is presented as structured research protocol: source labels, timestamp slots, ledger bands, and explicit awaiting-source states replace large empty areas.
 - Every research brief opens with a large **DM Serif Display** pull quote—live when agent text is present and a purposeful research-note prompt before the first request.
 - The offset aperture becomes a repeated brand device: it appears as a bracketed source marker, active status row, and compact signal stroke across the hero, snapshot, chart, analysis, news, and AI desk.
+- QuantAI remains the primary product identity because it is the current user-required brand; historical xAI references are not used as primary interface branding.
+- Signal Teal is reserved for verified source markers, active research lanes, selected states, and high-attention market signals rather than general ornament.
+- The conversational rail uses research-protocol language: it asks users to pressure-test a thesis, trace the source lane, or separate evidence from interpretation.
+
+## Phase 7 Design Direction — The Research Observatory
+
+**Design Movement:** A contemporary financial terminal interpreted through editorial publishing: dark graphite control surfaces, paper-like light research views, and data sheets that earn attention through typographic hierarchy rather than visual spectacle.
+
+**Core Principles:** First, research state is visible but never theatrical. Second, data and provenance lead every composition; controls and decoration recede. Third, light and dark are separate intentional environments rather than inversions. Fourth, tight rules, numerical alignment, and restrained color create the sense of a considered professional instrument.
+
+**Color Philosophy:** The dark environment is graphite and carbon with a calm indigo-blue action signal; green and red communicate price direction only. The light environment is mineral white with warm-gray rules and charcoal reading text. Signal Teal remains a provenance accent, not the default interaction color. Violet is reserved for no factual meaning and therefore omitted from market-state treatments.
+
+**Layout Paradigm:** The product behaves as a research workstation: a slim persistent command masthead, a contextual workflow rail on wide screens, and a report canvas with deliberate section rhythm. Narrow widths collapse into a task-first sequence with no desktop tables forced into the viewport.
+
+**Signature Elements:** A precise horizontal baseline under active workflow navigation; compact research-state capsules that disclose source/freshness rather than decoration; and a stacked A/B comparison treatment that shifts from ledger table to paired metric notes on mobile.
+
+**Interaction Philosophy:** Every interaction should feel like operating research equipment: immediate focus, short feedback, clear unavailable states, and no fake progress. Theme choice is a visible user preference rather than a novelty control.
+
+**Animation:** A one-time 1.2-second startup reveal combines the existing aperture mark with a single moving price-line trace. The primary app fades in only after the signal completes. All non-essential movement is removed under `prefers-reduced-motion`; regular interactions use 120–220ms opacity/transform transitions only.
+
+**Typography System:** Keep DM Sans for navigation and precise interface text, DM Serif Display for editorial assessment moments, and DM Mono for numbers, source states, and market labels. Numeric columns must use tabular figures; labels remain compact, tracked, and quiet.
+
+**Brand Essence:** QuantAI is a focused financial research workstation for people who need to separate sourced evidence from interpretation before making a decision.
+
+**Personality:** Exacting, calm, discerning.
+
+**Brand Voice:** Headlines sound like research desk headings; CTAs are direct operational verbs; microcopy explains status without technical jargon. Example: “Compare the evidence, not the narrative.” Example: “Sources are available where the record supports them.”
+
+**Wordmark & Logo:** Preserve the existing aperture mark, now set against a quiet command-bar field. The mark opens the startup trace and remains the unique anchor of the navigation.
+
+**Signature Brand Color:** **Research Indigo — `#6D7CFF`**, used only for primary workflow action and current workspace context; Signal Teal remains provenance-specific.

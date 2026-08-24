@@ -3,10 +3,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { StartupReveal } from "./components/StartupReveal";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
-/** Analyst's Ledger visual contract: warm editorial research desk, not a generic SaaS shell. */
+/** Research Observatory visual contract: premium financial workspace, not a generic SaaS shell. */
 
 function Router() {
   return (
@@ -19,19 +20,13 @@ function Router() {
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-      >
+      <ThemeProvider defaultTheme="system">
         <TooltipProvider>
           <Toaster />
+          <StartupReveal />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
