@@ -23,7 +23,7 @@ from api.index import app
 
 def check_deployment_files() -> None:
     config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-    function = config["functions"]["api/index.py"]
+    function = config["functions"]["api/**/*.py"]
     assert config["framework"] == "vite"
     assert config["outputDirectory"] == "dist/public"
     assert function["includeFiles"] == "api/**"
@@ -34,6 +34,15 @@ def check_deployment_files() -> None:
         and rewrite["destination"] == "/index.html"
         for rewrite in config["rewrites"]
     )
+    for entrypoint in (
+        "api/health.py",
+        "api/agents.py",
+        "api/research.py",
+        "api/agents/groq-finance-agent/runs.py",
+    ):
+        entrypoint_path = ROOT / entrypoint
+        assert entrypoint_path.exists(), entrypoint
+        assert "from api.index import app" in entrypoint_path.read_text(encoding="utf-8")
     assert "-r " not in (ROOT / "requirements.txt").read_text(encoding="utf-8")
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert "openai" in requirements

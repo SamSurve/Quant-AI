@@ -5,7 +5,7 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/public",
   "functions": {
-    "api/index.py": {
+    "api/**/*.py": {
       "maxDuration": 60,
       "includeFiles": "api/**",
       "excludeFiles": "{client/**,server/**,shared/**,.manus-logs/**,tests/**,**/__pycache__/**,**/*.pyc,**/*.pyo,**/.pytest_cache/**,.vercel/**,dist/**,node_modules/**}"

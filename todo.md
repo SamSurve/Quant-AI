@@ -200,3 +200,27 @@
 - [ ] Stage only the verified Phase 1–7 release files and confirm no `.env`, provider key, build output, cache, log, or temporary path is staged.
 - [ ] Create the authorized `Quant-AI Phase 1-7 production release` commit and push it normally to `origin/main` without force-push, amendment, deployment, or unrelated history changes.
 - [ ] Verify the remote `main` commit and branch, record the exact commit hash, and confirm no Vercel deployment was performed.
+
+## QuantAI Phase 9: Live Vercel API Routing Diagnosis
+
+- [ ] Capture the deployed `/api/health` 404 symptom and inspect local repository state without changing provider, secret, or application configuration.
+- [ ] Verify the deployed Vercel project, Python function inventory, route/rewrite behavior, logs, runtime signals, and live `/api/health`, `/api/agents`, and `/api/research` responses.
+- [ ] Compare live routing against `api/index.py`, `vercel.json`, Vite output, Python runtime configuration, and local behavior to establish the exact root cause.
+- [ ] Apply only the smallest safe backward-compatible correction if root cause is proven; preserve all Phase 1–7 workflows and provider architecture.
+- [ ] Document the cause, affected configuration, fix, required commit/push/redeployment action, and final verification result.
+
+## QuantAI Phase 9A: Renewed Live Vercel Verification
+
+- [ ] Reconfirm the current production deployment is linked to `SamSurve/Quant-AI` at the intended release commit before diagnosing routes.
+- [ ] Inspect Vercel project protection, deployed functions, build logs, and runtime logs through the enabled integration.
+- [ ] Re-probe live `/api/health`, `/api/agents`, and `/api/research` with protected-deployment access and compare results against local FastAPI behavior.
+- [ ] Reconcile observed live routing with `vercel.json`, Vite configuration, and Python runtime configuration; establish whether a fix is truly required.
+- [ ] Report verified findings, root-cause status, and safe next steps without changing provider architecture, secrets, deployment settings, or application behavior unless a fix is proven.
+
+## QuantAI Phase 9A: Authorized Nested-Route Release
+
+- [ ] Re-run the final non-disclosing credential, secret-file, route-scope, regression, configuration, and production-build validation for only the approved Vercel nested-route correction.
+- [ ] Stage only the four route entrypoints, `vercel.json`, production-readiness coverage, and the Phase 9 checklist update; explicitly exclude provider, key, environment, build, and unrelated files.
+- [ ] Commit the approved scope with `Fix Vercel nested API routing` and push normally to `origin/main` without force-push or Vercel setting mutation.
+- [ ] Confirm the automatic production deployment for the pushed commit reaches READY through the linked Vercel project.
+- [ ] Verify authenticated live `GET /api`, `GET /api/health`, `GET /api/agents`, and `POST /api/research` behavior before declaring the production API fixed.
