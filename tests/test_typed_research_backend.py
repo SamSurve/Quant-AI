@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT))
 import api.index as index_module
 from api.research_cache import AsyncTTLCache
 from api.research_errors import ResearchError
-from api.research_orchestrator import ResearchOrchestrator
+from api.research_orchestrator import AI_SYNTHESIS_CONTEXT_MAX_CHARS, AI_SYNTHESIS_CONTEXT_MAX_TOKENS, ResearchOrchestrator, bounded_ai_context_json, estimate_ai_tokens
 from api.research_protection import ResearchConcurrencyGuard, SlidingWindowRateLimiter
 from api.research_schemas import (
     CompanyCandidate,
@@ -135,6 +135,26 @@ async def verify_malformed_ai_is_partial_not_failure() -> None:
     assert response.status.news == ServiceState.UNAVAILABLE
     assert response.status.ai == ServiceState.UNAVAILABLE
     assert {warning.category for warning in response.warnings} == {ErrorCategory.NEWS_UNAVAILABLE, ErrorCategory.AI_UNAVAILABLE}
+
+
+def verify_bounded_ai_context() -> None:
+    context = {
+        "company": {"symbol": "TSLA", "name": "Tesla, Inc.", "sector": "Consumer Cyclical"},
+        "market": {"current_price": 200.0, "market_cap": 1000, "pe_ratio": 20.0},
+        "history": [{"timestamp": "2026-08-24", "open": 1, "high": 2, "low": 0, "close": 1, "volume": 10} for _ in range(2_000)],
+        "news": [{"title": f"Material update {index}", "summary": "verified evidence " * 1_000, "url": "https://example.invalid"} for index in range(8)],
+        "events": [{"event_type": "earnings", "title": "Upcoming earnings", "source": "provider"} for _ in range(8)],
+        "sources": [{"source": "provider", "url": "https://example.invalid"} for _ in range(100)],
+    }
+    serialized = bounded_ai_context_json(context)
+    bounded = json.loads(serialized)
+    assert len(serialized) <= AI_SYNTHESIS_CONTEXT_MAX_CHARS
+    assert estimate_ai_tokens(serialized) <= AI_SYNTHESIS_CONTEXT_MAX_TOKENS
+    assert "history" not in bounded
+    assert "sources" not in bounded
+    assert len(bounded["news"]) <= 4
+    assert all("url" not in item for item in bounded["news"])
+    assert all("source" not in item for item in bounded["events"])
 
 
 async def verify_cache_and_inflight_deduplication() -> None:
@@ -337,6 +357,7 @@ async def verify_request_protection() -> None:
 
 asyncio.run(verify_orchestrator_partial_results())
 asyncio.run(verify_malformed_ai_is_partial_not_failure())
+verify_bounded_ai_context()
 asyncio.run(verify_cache_and_inflight_deduplication())
 asyncio.run(verify_entity_validation_and_ambiguity())
 asyncio.run(verify_market_and_news_adapters())

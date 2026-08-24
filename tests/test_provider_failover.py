@@ -122,6 +122,16 @@ router, primary, secondary, ox = make_router(
 assert invoke(router).content == "secondary-after-auth"
 assert (primary.calls, secondary.calls, ox.calls) == (1, 1, 0)
 
+# TEST 6A: request-size failure falls forward but does not create an authentication cooldown.
+router, primary, secondary, ox = make_router(
+    [SimulatedProviderError("request too large", 413), "primary-after-smaller-context"],
+    ["secondary-after-413", "unexpected"],
+    ["unexpected"],
+)
+assert invoke(router).content == "secondary-after-413"
+assert invoke(router).content == "primary-after-smaller-context"
+assert (primary.calls, secondary.calls, ox.calls) == (2, 1, 0)
+
 # TEST 7/9/12: all attempts are bounded and safe after final malformed Ox output.
 router, primary, secondary, ox = make_router(
     [SimulatedProviderError("rate limited", 429)],
@@ -145,6 +155,7 @@ assert (primary.calls, secondary.calls, ox.calls) == (1, 1, 0)
 # Explicit classification covers all provider failure classes without payload leaks.
 assert classify_provider_failure(SimulatedProviderError("not found", 404)).category == ProviderFailureCategory.MODEL_NOT_FOUND
 assert classify_provider_failure(SimulatedProviderError("unauthorized", 401)).category == ProviderFailureCategory.AUTHENTICATION_FAILURE
+assert classify_provider_failure(SimulatedProviderError("request too large", 413)).category == ProviderFailureCategory.PAYLOAD_TOO_LARGE
 assert classify_provider_failure(SimulatedProviderError("gateway", 502)).category == ProviderFailureCategory.SERVER_ERROR
 assert classify_provider_failure(ConnectionError("network unavailable")).category == ProviderFailureCategory.CONNECTION_ERROR
 assert classify_provider_failure(ValueError("bad json")).category == ProviderFailureCategory.MALFORMED_RESPONSE

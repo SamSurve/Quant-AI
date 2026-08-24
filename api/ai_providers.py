@@ -43,6 +43,7 @@ _REQUEST_ID: ContextVar[str | None] = ContextVar("quantai_provider_request_id", 
 
 class ProviderFailureCategory(str, Enum):
     RATE_LIMITED = "RATE_LIMITED"
+    PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
     TIMEOUT = "TIMEOUT"
     AUTHENTICATION_FAILURE = "AUTHENTICATION_FAILURE"
     MODEL_NOT_FOUND = "MODEL_NOT_FOUND"
@@ -77,6 +78,8 @@ def classify_provider_failure(error: BaseException) -> ProviderFailure:
 
     status = _status_code(error)
     message = str(error).lower()
+    if status == 413 or any(token in message for token in ("payload too large", "request too large", "context length")):
+        return ProviderFailure(ProviderFailureCategory.PAYLOAD_TOO_LARGE, "request size exceeds provider limit")
     if status == 429 or any(token in message for token in ("rate limit", "quota", "too many requests")):
         return ProviderFailure(ProviderFailureCategory.RATE_LIMITED, "rate limited")
     if status == 408 or isinstance(error, TimeoutError) or any(token in message for token in ("timeout", "timed out", "deadline exceeded")):
