@@ -425,6 +425,20 @@ class ComparisonProvenance(BaseModel):
     as_of: str | None = None
 
 
+class FXConversion(BaseModel):
+    """A source-backed rate used only to normalize eligible monetary metrics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_currency: str = Field(min_length=3, max_length=3)
+    quote_currency: str = Field(min_length=3, max_length=3)
+    rate: float = Field(gt=0)
+    source: str
+    source_symbol: str
+    url: str | None = None
+    retrieved_at: str
+
+
 class ComparisonMetric(BaseModel):
     """A single metric with explicit values, units, periods, and winner policy."""
 
@@ -438,6 +452,10 @@ class ComparisonMetric(BaseModel):
     difference: float | None = None
     difference_basis: str | None = None
     currency: str | None = None
+    currency_a: str | None = None
+    currency_b: str | None = None
+    company_a_comparison_value: float | None = None
+    company_b_comparison_value: float | None = None
     currency_comparable: bool = True
     period_a: str | None = None
     period_b: str | None = None
@@ -446,6 +464,7 @@ class ComparisonMetric(BaseModel):
     note: str | None = None
     provenance_a: ComparisonProvenance | None = None
     provenance_b: ComparisonProvenance | None = None
+    fx_conversion: FXConversion | None = None
 
 
 class ComparisonScore(BaseModel):
@@ -542,6 +561,7 @@ class CompanyComparisonReport(BaseModel):
     company_b_news: list[NewsItem] = Field(default_factory=list)
     company_a_events: list[ResearchEvent] = Field(default_factory=list)
     company_b_events: list[ResearchEvent] = Field(default_factory=list)
+    fx_conversions: list[FXConversion] = Field(default_factory=list, max_length=2)
     metrics: list[ComparisonMetric] = Field(default_factory=list, max_length=24)
     financial_strength: ComparisonScore
     momentum: ComparisonScore
@@ -560,7 +580,7 @@ class SourceRecord(BaseModel):
     source: str
     url: str | None = None
     retrieved_at: str
-    data_type: Literal["entity", "market", "history", "company", "financial", "governance", "competitor", "news", "event", "signal", "comparison", "analysis"]
+    data_type: Literal["entity", "market", "history", "company", "financial", "governance", "competitor", "news", "event", "signal", "comparison", "analysis", "fx"]
 
 
 class ServiceStatus(BaseModel):

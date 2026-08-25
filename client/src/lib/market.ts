@@ -19,6 +19,7 @@ export type MarketBrief = {
   news: string[];
   chart: ChartPoint[];
   analysis: string;
+  aiInterpretationNotice: string | null;
   signal: { label: string; score: string; confidence: string; factors: string[]; explanation: string; methodology: string } | null;
   events: Array<{ title: string; date: string; importance: string; source: string }>;
   sources: Array<{ source: string; url: string | null; dataType: string; retrievedAt: string }>;
@@ -198,6 +199,7 @@ export function parseMarketBrief(markdown: string): MarketBrief {
     news: extractNews(markdown),
     chart: extractChart(tables),
     analysis: markdown,
+    aiInterpretationNotice: null,
     signal: null,
     events: [],
     sources: [],
@@ -219,6 +221,7 @@ export const emptyMarketBrief: MarketBrief = {
   news: [],
   chart: [],
   analysis: "",
+  aiInterpretationNotice: null,
   signal: null,
   events: [],
   sources: [],
@@ -285,6 +288,19 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
   const market = intelligence?.market_pulse || deep?.market_context || research.market;
   const currency = research.company?.currency;
   const change = market?.daily_change_percent;
+  const deterministicEvidenceAvailable = Boolean(
+    market
+    || research.news.length
+    || research.events.length
+    || deep?.company_overview
+    || deep?.financial_health
+    || intelligence?.price_history
+  );
+  const aiInterpretationNotice = research.status.ai === "unavailable"
+    ? (deterministicEvidenceAvailable
+      ? "Market data and evidence are available. AI interpretation is temporarily unavailable."
+      : "AI interpretation is temporarily unavailable; no deterministic evidence was returned for this request.")
+    : null;
   return {
     companyName: research.company?.name || "—",
     ticker: research.company?.symbol || "—",
@@ -306,6 +322,7 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
       .filter((point) => point.close !== null && point.close !== undefined)
       .map((point) => ({ label: point.timestamp.slice(0, 10), value: point.close as number })),
     analysis: typedAnalysisMarkdown(research),
+    aiInterpretationNotice,
     signal: intelligence?.market_signal ? {
       label: intelligence.market_signal.signal || "UNAVAILABLE",
       score: intelligence.market_signal.score === null || intelligence.market_signal.score === undefined ? "—" : `${intelligence.market_signal.score}/100`,

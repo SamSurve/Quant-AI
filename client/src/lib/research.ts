@@ -109,6 +109,7 @@ export type TypedResearchResponse = {
     company_b_news: TypedResearchResponse["news"];
     company_a_events: TypedResearchResponse["events"];
     company_b_events: TypedResearchResponse["events"];
+    fx_conversions: Array<{ base_currency: string; quote_currency: string; rate: number; source: string; source_symbol: string; url?: string | null; retrieved_at: string }>;
     metrics: Array<{
       metric: string;
       company_a_value?: number | null;
@@ -118,6 +119,10 @@ export type TypedResearchResponse = {
       difference?: number | null;
       difference_basis?: string | null;
       currency?: string | null;
+      currency_a?: string | null;
+      currency_b?: string | null;
+      company_a_comparison_value?: number | null;
+      company_b_comparison_value?: number | null;
       currency_comparable: boolean;
       period_a?: string | null;
       period_b?: string | null;
@@ -126,6 +131,7 @@ export type TypedResearchResponse = {
       note?: string | null;
       provenance_a?: { source: string; url?: string | null; retrieved_at?: string | null; data_type: string; as_of?: string | null } | null;
       provenance_b?: { source: string; url?: string | null; retrieved_at?: string | null; data_type: string; as_of?: string | null } | null;
+      fx_conversion?: { base_currency: string; quote_currency: string; rate: number; source: string; source_symbol: string; url?: string | null; retrieved_at: string } | null;
     }>;
     financial_strength: { company_a_score?: number | null; company_b_score?: number | null; winner: "A" | "B" | "TIE" | "INSUFFICIENT_DATA"; factors_a: string[]; factors_b: string[]; methodology: string };
     momentum: { company_a_score?: number | null; company_b_score?: number | null; winner: "A" | "B" | "TIE" | "INSUFFICIENT_DATA"; factors_a: string[]; factors_b: string[]; methodology: string };

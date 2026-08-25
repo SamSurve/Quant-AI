@@ -8,6 +8,7 @@ period alignment, currency conversion, or confidence level.
 from __future__ import annotations
 
 import asyncio
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -25,6 +26,7 @@ from .research_schemas import (
     ComparisonScore,
     ComparisonWinner,
     ErrorCategory,
+    FXConversion,
     FinancialHealth,
     FreshnessRecord,
     FreshnessState,
@@ -199,13 +201,26 @@ def comparison_metric(
     period_b: str | None = None,
     source_a: SourceRecord | None = None,
     source_b: SourceRecord | None = None,
+    fx_conversion: FXConversion | None = None,
 ) -> ComparisonMetric:
     monetary = unit in {"currency", "per_share"}
     aligned = _period_alignment(period_a, period_b)
     currencies_match = not monetary or (currency_a is not None and currency_a == currency_b)
+    comparison_value_a = value_a
+    comparison_value_b = value_b
+    comparison_currency = currency_a if currencies_match else None
+    fx_applied = False
+    if monetary and not currencies_match and is_verified_fx(fx_conversion, currency_a, currency_b):
+        comparison_value_a = float(value_a) * fx_conversion.rate if value_a is not None else None
+        comparison_value_b = value_b
+        comparison_currency = currency_b
+        currencies_match = True
+        fx_applied = True
     note: str | None = None
     if monetary and not currencies_match:
         note = "CURRENCY_COMPARISON_UNAVAILABLE: no verified conversion rate was used."
+    elif fx_applied:
+        note = "Verified FX conversion applied; source, pair, rate, and retrieval time are listed in FX evidence."
     elif monetary and period_a and period_b and aligned != PeriodAlignment.ALIGNED:
         note = "Reporting periods are not sufficiently aligned for an absolute-value winner."
     elif aligned == PeriodAlignment.NOT_ALIGNED:
@@ -215,8 +230,8 @@ def comparison_metric(
     if monetary and period_a and period_b:
         period_safe = aligned == PeriodAlignment.ALIGNED
     can_compare = available and currencies_match and period_safe
-    winner = _winner(value_a, value_b, higher_is_better) if can_compare else ComparisonWinner.INSUFFICIENT_DATA
-    difference = value_a - value_b if can_compare and value_a is not None and value_b is not None else None
+    winner = _winner(comparison_value_a, comparison_value_b, higher_is_better) if can_compare else ComparisonWinner.INSUFFICIENT_DATA
+    difference = comparison_value_a - comparison_value_b if can_compare and comparison_value_a is not None and comparison_value_b is not None else None
     return ComparisonMetric(
         metric=metric,
         company_a_value=value_a,
@@ -225,7 +240,11 @@ def comparison_metric(
         winner=winner,
         difference=difference,
         difference_basis="company_a_minus_company_b" if difference is not None else None,
-        currency=currency_a if currencies_match else None,
+        currency=comparison_currency,
+        currency_a=currency_a,
+        currency_b=currency_b,
+        company_a_comparison_value=comparison_value_a if fx_applied else None,
+        company_b_comparison_value=comparison_value_b if fx_applied else None,
         currency_comparable=currencies_match,
         period_a=period_a,
         period_b=period_b,
@@ -234,10 +253,11 @@ def comparison_metric(
         note=note,
         provenance_a=_provenance(source_a, period_a),
         provenance_b=_provenance(source_b, period_b),
+        fx_conversion=fx_conversion if fx_applied else None,
     )
 
 
-def build_comparison_metrics(company_a: ComparisonCompanyData, company_b: ComparisonCompanyData) -> list[ComparisonMetric]:
+def build_comparison_metrics(company_a: ComparisonCompanyData, company_b: ComparisonCompanyData, fx_conversion: FXConversion | None = None) -> list[ComparisonMetric]:
     fa, fb = company_a.financial, company_b.financial
     ma, mb = company_a.market, company_b.market
     financial_source_a = _source_of(company_a.sources, "financial")
@@ -247,15 +267,15 @@ def build_comparison_metrics(company_a: ComparisonCompanyData, company_b: Compar
     ca, cb = company_a.identity.currency, company_b.identity.currency
     pa, pb = (fa.fiscal_period_end if fa else None), (fb.fiscal_period_end if fb else None)
     return [
-        comparison_metric("market_cap", ma.market_cap if ma else None, mb.market_cap if mb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, source_a=market_source_a, source_b=market_source_b),
-        comparison_metric("revenue", fa.revenue if fa else None, fb.revenue if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
-        comparison_metric("net_income", fa.net_income if fa else None, fb.net_income if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
-        comparison_metric("eps", fa.eps if fa else None, fb.eps if fb else None, unit="per_share", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
+        comparison_metric("market_cap", ma.market_cap if ma else None, mb.market_cap if mb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, source_a=market_source_a, source_b=market_source_b, fx_conversion=fx_conversion),
+        comparison_metric("revenue", fa.revenue if fa else None, fb.revenue if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
+        comparison_metric("net_income", fa.net_income if fa else None, fb.net_income if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
+        comparison_metric("eps", fa.eps if fa else None, fb.eps if fb else None, unit="per_share", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
         comparison_metric("profit_margin", fa.profit_margin if fa else None, fb.profit_margin if fb else None, unit="percentage", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
         comparison_metric("operating_margin", fa.operating_margin if fa else None, fb.operating_margin if fb else None, unit="percentage", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
-        comparison_metric("free_cash_flow", fa.free_cash_flow if fa else None, fb.free_cash_flow if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
-        comparison_metric("total_cash", fa.total_cash if fa else None, fb.total_cash if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
-        comparison_metric("total_debt", fa.total_debt if fa else None, fb.total_debt if fb else None, unit="currency", higher_is_better=False, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b),
+        comparison_metric("free_cash_flow", fa.free_cash_flow if fa else None, fb.free_cash_flow if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
+        comparison_metric("total_cash", fa.total_cash if fa else None, fb.total_cash if fb else None, unit="currency", higher_is_better=True, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
+        comparison_metric("total_debt", fa.total_debt if fa else None, fb.total_debt if fb else None, unit="currency", higher_is_better=False, currency_a=ca, currency_b=cb, period_a=pa, period_b=pb, source_a=financial_source_a, source_b=financial_source_b, fx_conversion=fx_conversion),
         comparison_metric("pe_ratio", fa.pe_ratio if fa else None, fb.pe_ratio if fb else None, unit="ratio", higher_is_better=False, currency_a=ca, currency_b=cb, source_a=financial_source_a, source_b=financial_source_b),
         comparison_metric("price_to_sales", fa.price_to_sales if fa else None, fb.price_to_sales if fb else None, unit="ratio", higher_is_better=False, currency_a=ca, currency_b=cb, source_a=financial_source_a, source_b=financial_source_b),
         comparison_metric("dividend_yield", fa.dividend_yield if fa else None, fb.dividend_yield if fb else None, unit="percentage", higher_is_better=True, currency_a=ca, currency_b=cb, source_a=financial_source_a, source_b=financial_source_b),
@@ -309,13 +329,16 @@ def build_category_winners(metrics: list[ComparisonMetric], financial_strength: 
     ]
 
 
-def build_confidence(metrics: list[ComparisonMetric], categories: list[ComparisonCategoryWinner]) -> ComparisonConfidence:
+def build_confidence(metrics: list[ComparisonMetric], categories: list[ComparisonCategoryWinner], fx_conversions: list[FXConversion] | None = None) -> ComparisonConfidence:
     comparable = [metric for metric in metrics if metric.winner != ComparisonWinner.INSUFFICIENT_DATA]
     aligned = [metric for metric in comparable if metric.period_alignment in {PeriodAlignment.ALIGNED, PeriodAlignment.PARTIALLY_ALIGNED}]
     categories_available = [category for category in categories if category.winner != ComparisonWinner.INSUFFICIENT_DATA]
     score = min(100, round((len(comparable) / max(1, len(metrics))) * 55 + (len(aligned) / max(1, len(comparable))) * 25 + (len(categories_available) / max(1, len(categories))) * 20))
     level = "high" if score >= 75 else "medium" if score >= 50 else "low" if score > 0 else "insufficient"
     reasons = [f"{len(comparable)} of {len(metrics)} metrics are safely comparable.", f"{len(categories_available)} of {len(categories)} category outcomes have deterministic evidence."]
+    if fx_conversions:
+        rates = ", ".join(f"{item.base_currency}/{item.quote_currency}" for item in fx_conversions)
+        reasons.append(f"Verified FX evidence normalized eligible cross-currency monetary metrics ({rates}).")
     if any(not metric.currency_comparable for metric in metrics):
         reasons.append("Some monetary metrics use different currencies and were not converted.")
     if any(metric.period_alignment == PeriodAlignment.NOT_ALIGNED for metric in metrics):
@@ -349,6 +372,20 @@ def _source_of(sources: list[SourceRecord], data_type: str) -> SourceRecord | No
 
 def _provenance(source: SourceRecord | None, as_of: str | None) -> ComparisonProvenance | None:
     return ComparisonProvenance(source=source.source, url=source.url, retrieved_at=source.retrieved_at, data_type=source.data_type, as_of=as_of) if source else None  # type: ignore[arg-type]
+
+
+def is_verified_fx(conversion: FXConversion | None, currency_a: str | None, currency_b: str | None) -> bool:
+    if conversion is None or not currency_a or not currency_b:
+        return False
+    return (
+        conversion.base_currency == currency_a.upper()
+        and conversion.quote_currency == currency_b.upper()
+        and bool(conversion.source.strip())
+        and bool(conversion.source_symbol.strip())
+        and bool(conversion.retrieved_at.strip())
+        and math.isfinite(conversion.rate)
+        and conversion.rate > 0
+    )
 
 
 def _period_alignment(period_a: str | None, period_b: str | None) -> PeriodAlignment:

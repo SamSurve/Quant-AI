@@ -57,9 +57,11 @@ from .comparison_services import (
     build_confidence,
     build_financial_strength,
     build_momentum_score,
+    is_verified_fx,
     overall_advantage,
     prepare_comparison_company,
 )
+from .fx_services import FXRateService
 from .research_services import EntityResolutionService, MarketDataService, NewsService
 from .market_intelligence_services import (
     EventRadarService,
@@ -260,6 +262,7 @@ class ResearchOrchestrator:
         financial_health_service: FinancialHealthService | None = None,
         company_analysis_service: CompanyAnalysisSynthesisService | None = None,
         comparison_analysis_service: ComparisonSynthesisService | None = None,
+        fx_rate_service: FXRateService | None = None,
     ) -> None:
         self.entity_service = entity_service or EntityResolutionService()
         self.market_service = market_service or MarketDataService()
@@ -272,6 +275,7 @@ class ResearchOrchestrator:
         self.financial_health_service = financial_health_service or FinancialHealthService()
         self.company_analysis_service = company_analysis_service or CompanyAnalysisSynthesisService()
         self.comparison_analysis_service = comparison_analysis_service or ComparisonSynthesisService()
+        self.fx_rate_service = fx_rate_service or FXRateService()
 
     async def research(self, request_id: str, request: ResearchRequest) -> ResearchResponse:
         if request.mode == ResearchMode.MARKET_INTELLIGENCE:
@@ -428,15 +432,59 @@ class ResearchOrchestrator:
             raise self._unexpected_error(company_b_result, ErrorCategory.COMPANY_UNAVAILABLE)
         company_a, company_b = company_a_result, company_b_result
 
+        fx_conversion = None
+        fx_warning = None
+        fx_source = None
+        currencies_differ = (
+            company_a.identity.currency
+            and company_b.identity.currency
+            and company_a.identity.currency != company_b.identity.currency
+        )
+        if currencies_differ:
+            remaining_fx_budget = DETERMINISTIC_DEEP_ANALYSIS_BUDGET_SECONDS - (time.monotonic() - started)
+            if remaining_fx_budget > 0:
+                try:
+                    fx_result = await asyncio.wait_for(
+                        self.fx_rate_service.fetch(company_a.identity.currency, company_b.identity.currency),
+                        timeout=remaining_fx_budget,
+                    )
+                    fx_conversion, fx_warning, fx_source = fx_result.conversion, fx_result.warning, fx_result.source
+                    if fx_conversion and not is_verified_fx(fx_conversion, company_a.identity.currency, company_b.identity.currency):
+                        fx_conversion = None
+                        fx_source = None
+                        fx_warning = ResearchError(
+                            ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE,
+                            detail="FX conversion response was missing valid matching rate evidence",
+                            retryable=True,
+                        )
+                except TimeoutError:
+                    fx_warning = ResearchError(
+                        ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE,
+                        detail="verified FX conversion skipped because the comparison data budget was exhausted",
+                        retryable=True,
+                    )
+                except Exception as error:
+                    fx_warning = self._unexpected_error(error, ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE)
+            else:
+                fx_warning = ResearchError(
+                    ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE,
+                    detail="verified FX conversion skipped because the comparison data budget was exhausted",
+                    retryable=True,
+                )
+
         response.company = company_a.entity
         response.market = company_a.market
         response.news = company_a.news
         response.events = company_a.events
         response.sources.extend(company_a.sources)
         response.sources.extend(company_b.sources)
+        if fx_source:
+            response.sources.append(fx_source)
         response.sources.append(SourceRecord(source="QuantAI deterministic comparison methodology", retrieved_at=self._now_stamp(), data_type="comparison"))
         for warning in [*company_a.warnings, *company_b.warnings]:
             response.warnings.append(self._warning(warning))
+        if fx_warning:
+            response.warnings.append(self._warning(fx_warning))
 
         status.company = self._paired_state(company_a.states.get("company"), company_b.states.get("company"))
         status.market = ServiceState.AVAILABLE if company_a.market or company_b.market else ServiceState.UNAVAILABLE
@@ -446,11 +494,11 @@ class ResearchOrchestrator:
         status.news = self._paired_state(company_a.states.get("news"), company_b.states.get("news"))
         status.events = self._paired_state(company_a.states.get("events"), company_b.states.get("events"))
 
-        metrics = build_comparison_metrics(company_a, company_b)
+        metrics = build_comparison_metrics(company_a, company_b, fx_conversion)
         financial_strength = build_financial_strength(company_a, company_b)
         momentum = build_momentum_score(company_a, company_b)
         categories = build_category_winners(metrics, financial_strength, momentum)
-        confidence = build_confidence(metrics, categories)
+        confidence = build_confidence(metrics, categories, [fx_conversion] if fx_conversion else None)
         overall, overall_explanation = overall_advantage(categories, confidence)
         report = CompanyComparisonReport(
             company_a=company_a.identity,
@@ -467,6 +515,7 @@ class ResearchOrchestrator:
             company_b_news=company_b.news,
             company_a_events=company_a.events,
             company_b_events=company_b.events,
+            fx_conversions=[fx_conversion] if fx_conversion else [],
             metrics=metrics,
             financial_strength=financial_strength,
             momentum=momentum,

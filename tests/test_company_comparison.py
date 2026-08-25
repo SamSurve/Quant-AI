@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 import api.index as index_module
 from api.company_analysis_services import CompanyProfileResult, FinancialHealthResult
 from api.comparison_services import comparison_metric
+from api.fx_services import FXRateResult
 from api.market_intelligence_services import EventRadarResult, HistoryResult
 from api.research_cache import AsyncTTLCache
 from api.research_errors import ResearchError
@@ -28,6 +29,7 @@ from api.research_schemas import (
     CompanyIdentity,
     CompanyOverview,
     ErrorCategory,
+    FXConversion,
     FinancialHealth,
     FreshnessRecord,
     FreshnessState,
@@ -57,6 +59,7 @@ def company(symbol: str) -> CompanyIdentity:
         "AAPL": ("Apple Inc.", "Consumer Electronics", "USD"),
         "MSFT": ("Microsoft Corporation", "Software", "USD"),
         "BMW.DE": ("Bayerische Motoren Werke AG", "Auto Manufacturers", "EUR"),
+        "TCS.NS": ("Tata Consultancy Services Limited", "Information Technology Services", "INR"),
     }
     name, industry, currency = values[symbol]
     return CompanyIdentity(symbol=symbol, name=name, exchange="NMS", sector="Technology", industry=industry, currency=currency, identifier_confidence=IdentifierConfidence.HIGH)
@@ -64,7 +67,7 @@ def company(symbol: str) -> CompanyIdentity:
 
 class FakeEntityService:
     async def resolve(self, query: str) -> EntityResolution:
-        symbol = {"APPLE": "AAPL", "AAPL": "AAPL", "MICROSOFT": "MSFT", "MSFT": "MSFT", "BMW": "BMW.DE", "BMW.DE": "BMW.DE"}.get(query.upper())
+        symbol = {"APPLE": "AAPL", "AAPL": "AAPL", "MICROSOFT": "MSFT", "MSFT": "MSFT", "BMW": "BMW.DE", "BMW.DE": "BMW.DE", "TCS": "TCS.NS", "TCS.NS": "TCS.NS"}.get(query.upper())
         if not symbol:
             raise ResearchError(ErrorCategory.ENTITY_NOT_FOUND, detail="controlled entity miss")
         identity = company(symbol)
@@ -73,7 +76,7 @@ class FakeEntityService:
 
 class FakeCompanyProfileService:
     async def fetch(self, entity: CompanyIdentity):
-        factor = {"AAPL": 1.0, "MSFT": 0.8, "BMW.DE": 0.3}[entity.symbol]
+        factor = {"AAPL": 1.0, "MSFT": 0.8, "BMW.DE": 0.3, "TCS.NS": 30.0}[entity.symbol]
         overview = CompanyOverview(company_name=entity.name, ticker=entity.symbol, exchange=entity.exchange, sector=entity.sector, industry=entity.industry, country="Controlled country", headquarters="Controlled headquarters", website="https://example.test", business_description="Controlled factual profile.", employees=1000, market_cap=int(3_000_000 * factor), currency=entity.currency)
         info = {"regularMarketPrice": 200 * factor, "marketCap": int(3_000_000 * factor), "trailingPE": 30 * factor, "trailingEps": 6.0, "currency": entity.currency, "exchange": entity.exchange}
         return CompanyProfileResult(overview, None, info, ServiceState.AVAILABLE, ServiceState.PARTIAL, None, source("company", entity.symbol), source("governance", entity.symbol), STAMP), FreshnessRecord(state=FreshnessState.LIVE, retrieved_at=STAMP)
@@ -90,8 +93,10 @@ class FakeFinancialHealthService:
             values = dict(revenue=1000.0, net_income=250.0, eps=6.0, profit_margin=0.25, operating_margin=0.30, free_cash_flow=300.0, total_cash=200.0, total_debt=50.0, pe_ratio=30.0, price_to_sales=3.0, dividend_yield=0.005, return_on_equity=0.40, return_on_assets=0.20, currency="USD", fiscal_period_end="2025-09-30T00:00:00Z")
         elif entity.symbol == "MSFT":
             values = dict(revenue=900.0, net_income=300.0, eps=7.0, profit_margin=0.33, operating_margin=0.40, free_cash_flow=290.0, total_cash=150.0, total_debt=70.0, pe_ratio=32.0, price_to_sales=4.0, dividend_yield=0.004, return_on_equity=0.42, return_on_assets=0.22, currency="USD", fiscal_period_end="2025-06-30T00:00:00Z")
-        else:
+        elif entity.symbol == "BMW.DE":
             values = dict(revenue=600.0, net_income=80.0, eps=2.0, profit_margin=0.13, operating_margin=0.12, free_cash_flow=90.0, total_cash=80.0, total_debt=150.0, pe_ratio=8.0, price_to_sales=0.5, dividend_yield=0.03, return_on_equity=0.15, return_on_assets=0.05, currency="EUR", fiscal_period_end="2024-12-31T00:00:00Z")
+        else:
+            values = dict(revenue=90_000.0, net_income=18_000.0, eps=750.0, profit_margin=0.20, operating_margin=0.24, free_cash_flow=20_000.0, total_cash=25_000.0, total_debt=8_000.0, pe_ratio=25.0, price_to_sales=4.0, dividend_yield=0.01, return_on_equity=0.35, return_on_assets=0.18, currency="INR", fiscal_period_end="2025-09-30T00:00:00Z")
         return FinancialHealthResult(FinancialHealth(**values), ServiceState.AVAILABLE, None, source("financial", entity.symbol), STAMP), FreshnessRecord(state=FreshnessState.LIVE, retrieved_at=STAMP)
 
 
@@ -141,6 +146,27 @@ class FailingComparisonAnalysisService:
         raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail="controlled AI failure", retryable=True)
 
 
+class FakeFXRateService:
+    async def fetch(self, base_currency: str | None, quote_currency: str | None) -> FXRateResult:
+        rates = {("USD", "INR"): 80.0, ("INR", "USD"): 0.0125}
+        rate = rates.get((base_currency, quote_currency))
+        if rate is None:
+            return FXRateResult(None, ResearchError(ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE, detail="controlled FX pair unavailable", retryable=True), None)
+        conversion = FXConversion(base_currency=base_currency or "", quote_currency=quote_currency or "", rate=rate, source="Controlled FX source", source_symbol=f"{base_currency}{quote_currency}=X", url="https://example.test/fx", retrieved_at=STAMP)
+        return FXRateResult(conversion, None, source("fx", f"{base_currency}{quote_currency}=X"))
+
+
+class MissingFXRateService:
+    async def fetch(self, _base_currency: str | None, _quote_currency: str | None) -> FXRateResult:
+        return FXRateResult(None, ResearchError(ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE, detail="controlled FX quote unavailable", retryable=True), None)
+
+
+class InvalidFXRateService:
+    async def fetch(self, base_currency: str | None, quote_currency: str | None) -> FXRateResult:
+        invalid = FXConversion.model_construct(base_currency=base_currency or "USD", quote_currency=quote_currency or "INR", rate=0.0, source="Controlled FX source", source_symbol="USDINR=X", url="https://example.test/fx", retrieved_at=STAMP)
+        return FXRateResult(invalid, None, source("fx", "USDINR=X"))
+
+
 def comparison_orchestrator(**overrides) -> ResearchOrchestrator:
     defaults = {
         "entity_service": FakeEntityService(),
@@ -185,6 +211,46 @@ def verify_currency_and_period_protection() -> None:
     assert tie.winner.value == "TIE"
     missing = comparison_metric("margin", None, 0.2, unit="percentage", higher_is_better=True, currency_a="USD", currency_b="USD")
     assert missing.winner.value == "INSUFFICIENT_DATA" and missing.availability == "partial"
+    inr_same_currency = comparison_metric("revenue", 100.0, 90.0, unit="currency", higher_is_better=True, currency_a="INR", currency_b="INR", period_a="2025-03-31T00:00:00Z", period_b="2025-03-31T00:00:00Z")
+    assert inr_same_currency.winner.value == "A" and inr_same_currency.currency == "INR" and inr_same_currency.fx_conversion is None
+
+
+async def verify_verified_fx_comparison_and_provenance() -> None:
+    response = await comparison_orchestrator(fx_rate_service=FakeFXRateService()).research("comparison-usd-inr", ResearchRequest(mode=ResearchMode.COMPANY_COMPARISON, company_a="AAPL", company_b="TCS", include_analysis=False))
+    report = response.company_comparison
+    assert report and len(report.fx_conversions) == 1
+    fx = report.fx_conversions[0]
+    assert (fx.base_currency, fx.quote_currency, fx.rate, fx.source, fx.retrieved_at) == ("USD", "INR", 80.0, "Controlled FX source", STAMP)
+    revenue = next(metric for metric in report.metrics if metric.metric == "revenue")
+    assert (revenue.company_a_value, revenue.company_b_value) == (1000.0, 90_000.0)
+    assert (revenue.company_a_comparison_value, revenue.company_b_comparison_value, revenue.currency) == (80_000.0, 90_000.0, "INR")
+    assert revenue.currency_comparable and revenue.winner.value == "B" and revenue.difference == -10_000.0
+    assert revenue.fx_conversion and revenue.fx_conversion.source_symbol == "USDINR=X" and revenue.fx_conversion.retrieved_at == STAMP
+    market_cap = next(metric for metric in report.metrics if metric.metric == "market_cap")
+    assert market_cap.currency_comparable and market_cap.company_a_comparison_value == 240_000_000.0
+    margin = next(metric for metric in report.metrics if metric.metric == "profit_margin")
+    assert margin.currency_comparable and margin.fx_conversion is None and margin.winner.value == "A"
+    assert any(item.data_type == "fx" for item in response.sources)
+    assert any("USD/INR" in reason for reason in report.comparison_confidence.reasons)
+
+
+async def verify_missing_or_invalid_fx_preserves_safe_failure() -> None:
+    for service in (MissingFXRateService(), InvalidFXRateService()):
+        response = await comparison_orchestrator(fx_rate_service=service).research("comparison-missing-fx", ResearchRequest(mode=ResearchMode.COMPANY_COMPARISON, company_a="AAPL", company_b="TCS", include_analysis=False))
+        report = response.company_comparison
+        assert report and not report.fx_conversions
+        revenue = next(metric for metric in report.metrics if metric.metric == "revenue")
+        assert revenue.winner.value == "INSUFFICIENT_DATA" and not revenue.currency_comparable and revenue.difference is None
+        assert {warning.category for warning in response.warnings} >= {ErrorCategory.CURRENCY_COMPARISON_UNAVAILABLE}
+
+
+def verify_reverse_fx_direction_and_period_protection() -> None:
+    inr_to_usd = FXConversion(base_currency="INR", quote_currency="USD", rate=0.0125, source="Controlled FX source", source_symbol="INRUSD=X", url="https://example.test/fx", retrieved_at=STAMP)
+    reversed_pair = comparison_metric("revenue", 80_000.0, 1_000.0, unit="currency", higher_is_better=True, currency_a="INR", currency_b="USD", period_a="2025-03-31T00:00:00Z", period_b="2025-03-31T00:00:00Z", fx_conversion=inr_to_usd)
+    assert reversed_pair.currency_comparable and reversed_pair.currency == "USD"
+    assert reversed_pair.company_a_comparison_value == 1000.0 and reversed_pair.company_b_comparison_value == 1000.0 and reversed_pair.winner.value == "TIE"
+    not_aligned = comparison_metric("revenue", 80_000.0, 1_000.0, unit="currency", higher_is_better=True, currency_a="INR", currency_b="USD", period_a="2025-03-31T00:00:00Z", period_b="2024-01-01T00:00:00Z", fx_conversion=inr_to_usd)
+    assert not_aligned.currency_comparable and not_aligned.winner.value == "INSUFFICIENT_DATA" and not_aligned.period_alignment.value == "NOT_ALIGNED"
 
 
 async def verify_partial_sources_and_ai_failure() -> None:
@@ -247,6 +313,9 @@ async def verify_same_resolved_ticker_is_safe_validation_error() -> None:
 
 asyncio.run(verify_complete_comparison())
 verify_currency_and_period_protection()
+asyncio.run(verify_verified_fx_comparison_and_provenance())
+asyncio.run(verify_missing_or_invalid_fx_preserves_safe_failure())
+verify_reverse_fx_direction_and_period_protection()
 asyncio.run(verify_partial_sources_and_ai_failure())
 asyncio.run(verify_unexpected_profile_failure_is_safe_partial_data())
 asyncio.run(verify_cache_deduplication())
