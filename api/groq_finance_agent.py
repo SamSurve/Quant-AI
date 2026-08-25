@@ -20,6 +20,8 @@ from ddgs import DDGS
 from dotenv import load_dotenv
 
 from .ai_providers import ProviderRouter
+from .research_schemas import CompanyCandidate
+from .research_services import EntityResolutionService
 
 
 load_dotenv()
@@ -110,13 +112,21 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
             search_error = search_error or str(error)
 
     normalized_query = cleaned_query.upper().replace(" ", "")
-    direct_symbols = [candidate for candidate in candidates if candidate["symbol"].upper() == normalized_query]
-    stem_symbols = [
-        candidate
-        for candidate in candidates
-        if candidate["symbol"].upper().split(".")[0] == normalized_query
+    candidate_by_symbol: dict[str, dict[str, Any]] = {}
+    for candidate in candidates:
+        symbol = str(candidate["symbol"]).upper()
+        candidate_by_symbol.setdefault(symbol, candidate)
+    safe_candidates = [
+        CompanyCandidate(
+            symbol=symbol,
+            name=candidate.get("name"),
+            exchange=candidate.get("exchange"),
+            quote_type=candidate.get("quote_type"),
+        )
+        for symbol, candidate in candidate_by_symbol.items()
     ]
-    selected = direct_symbols[0] if direct_symbols else (stem_symbols[0] if stem_symbols else (candidates[0] if candidates else None))
+    selection = EntityResolutionService._select_candidate(cleaned_query, safe_candidates)
+    selected = candidate_by_symbol[selection[0].symbol] if selection else None
 
     # Yahoo Finance searches can occasionally omit exchange-qualified symbols. Preserve a
     # clearly supplied symbol as a provider-validated fallback, not a static company map.
@@ -124,12 +134,19 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
     if selected is None and explicit_symbol:
         selected = {"symbol": normalized_query, "name": None, "exchange": None, "quote_type": "EQUITY"}
 
-    if selected is None:
+    if selected is None and not candidates:
         return {
             "error": f"No supported listed company or ticker was found for '{cleaned_query}'.",
             "query": cleaned_query,
-            "candidates": candidates,
+            "candidates": [],
             "provider_note": search_error,
+        }
+
+    if selected is None:
+        return {
+            "error": "Multiple companies match this query. Select a listed ticker to continue.",
+            "query": cleaned_query,
+            "candidates": candidates[:5],
         }
 
     symbol = selected["symbol"]
