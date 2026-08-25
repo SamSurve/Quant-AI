@@ -24,6 +24,9 @@ from api.ai_providers import (
     ProviderRouter,
     StructuredProviderEngine,
     USER_FRIENDLY_UNAVAILABLE,
+    build_groq_primary_provider,
+    build_groq_secondary_provider,
+    build_openrouter_provider,
     classify_provider_failure,
     ordered_providers_from_environment,
 )
@@ -186,6 +189,45 @@ finally:
         os.environ.pop("AI_PROVIDER_ORDER", None)
     else:
         os.environ["AI_PROVIDER_ORDER"] = previous_order
+
+
+# Synthetic no-secret rotation isolation: each configured slot must retain its
+# own model and credential boundary rather than inheriting a neighboring slot.
+rotation_names = (
+    "GROQ_API_KEY_PRIMARY",
+    "GROQ_MODEL_PRIMARY",
+    "GROQ_API_KEY_SECONDARY",
+    "GROQ_MODEL_SECONDARY",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_MODEL",
+)
+rotation_previous = {name: os.environ.get(name) for name in rotation_names}
+try:
+    os.environ.update(
+        {
+            "GROQ_API_KEY_PRIMARY": "synthetic-primary",
+            "GROQ_MODEL_PRIMARY": "primary-test-model",
+            "GROQ_API_KEY_SECONDARY": "synthetic-secondary",
+            "GROQ_MODEL_SECONDARY": "secondary-test-model",
+            "OPENROUTER_API_KEY": "synthetic-openrouter",
+            "OPENROUTER_MODEL": "openrouter-test-model",
+        }
+    )
+    primary_slot = build_groq_primary_provider()
+    secondary_slot = build_groq_secondary_provider()
+    openrouter_slot = build_openrouter_provider()
+    assert (primary_slot.name, primary_slot.model_id, primary_slot.configured) == ("Groq primary", "primary-test-model", True)
+    assert (secondary_slot.name, secondary_slot.model_id, secondary_slot.configured) == ("Groq secondary", "secondary-test-model", True)
+    assert (openrouter_slot.name, openrouter_slot.model_id, openrouter_slot.configured) == ("OpenRouter Ox Alpha", "openrouter-test-model", True)
+    assert primary_slot.model.api_key == "synthetic-primary"
+    assert secondary_slot.model.api_key == "synthetic-secondary"
+    assert openrouter_slot.model.api_key == "synthetic-openrouter"
+finally:
+    for name, value in rotation_previous.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
 
 
 # Structured-engine tests exercise schema validation and exact fallback sequencing.

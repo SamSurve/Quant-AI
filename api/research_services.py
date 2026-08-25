@@ -64,18 +64,29 @@ def _normalized_name(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]", "", (value or "").lower())
 
 
-_CORPORATE_SUFFIXES = frozenset({"ag", "co", "corp", "corporation", "inc", "incorporated", "limited", "llc", "ltd", "nv", "plc", "sa"})
-_COMPANY_NAME_ALIASES = {"google": frozenset({"alphabet"})}
+_CORPORATE_SUFFIXES = frozenset({"ag", "co", "com", "corp", "corporation", "inc", "incorporated", "limited", "llc", "ltd", "nv", "plc", "sa"})
+_COMPANY_NAME_ALIASES = {
+    "google": frozenset({"alphabet"}),
+    # The product explicitly supports the Indian company name / ticker shorthand
+    # `TCS`; resolve it by canonical company identity rather than Yahoo rank.
+    "tcs": frozenset({"tataconsultancyservices"}),
+}
 _PREFERRED_EXCHANGES = ("NMS", "NYQ", "NGM", "NSI", "BSE")
+
+
+def _company_name_tokens(value: str | None) -> list[str]:
+    """Return comparison tokens while ignoring trailing legal-form label suffixes."""
+
+    tokens = re.findall(r"[a-z0-9]+", (value or "").lower())
+    while tokens and tokens[-1] in _CORPORATE_SUFFIXES:
+        tokens.pop()
+    return tokens
 
 
 def _canonical_company_name(value: str | None) -> str:
     """Compare company labels while ignoring only trailing legal-form suffixes."""
 
-    tokens = re.findall(r"[a-z0-9]+", (value or "").lower())
-    while tokens and tokens[-1] in _CORPORATE_SUFFIXES:
-        tokens.pop()
-    return "".join(tokens)
+    return "".join(_company_name_tokens(value))
 
 
 def _terminal_ticker(value: str) -> str | None:
@@ -248,14 +259,19 @@ class EntityResolutionService:
         if preferred_alias_name:
             return preferred_alias_name, IdentifierConfidence.HIGH
 
+        query_name_tokens = _company_name_tokens(query)
         prefix_name = [
             candidate
             for candidate in candidates
-            if canonical_query_name and _canonical_company_name(candidate.name).startswith(canonical_query_name)
+            if query_name_tokens and _company_name_tokens(candidate.name)[: len(query_name_tokens)] == query_name_tokens
         ]
-        preferred_prefix_name = _select_preferred_listing(prefix_name)
-        if preferred_prefix_name:
-            return preferred_prefix_name, IdentifierConfidence.HIGH
+        # A broad name prefix can match unrelated companies.  Unlike the exact
+        # canonical-name and documented-alias paths above, exchange preference
+        # cannot prove identity here: selecting it would quietly turn a broad
+        # query such as "Reliance" into whichever candidate happens to be on a
+        # preferred venue.  Resolve a prefix only when it leaves one company.
+        if len(prefix_name) == 1:
+            return prefix_name[0], IdentifierConfidence.HIGH
 
         # Do not silently select the ranked first result for company-name searches.
         # A single fuzzy candidate is useful but is marked medium confidence.
@@ -384,7 +400,8 @@ class NewsService:
 
         items: list[NewsItem] = []
         seen: set[str] = set()
-        cutoff = utc_now() - timedelta(days=NEWS_FRESHNESS_DAYS)
+        retrieved_at = utc_now()
+        cutoff = retrieved_at - timedelta(days=NEWS_FRESHNESS_DAYS)
         for raw in raw_items:
             title = str(raw.get("title") or "").strip()
             url = str(raw.get("url") or "").strip() or None
@@ -394,8 +411,11 @@ class NewsService:
             if key in seen:
                 continue
             published_at = raw.get("date")
-            parsed_date = self._parse_date(published_at)
-            if parsed_date and parsed_date < cutoff:
+            parsed_date = self._parse_date(published_at, reference_time=retrieved_at)
+            # A Recent News record must carry a source-provided time that can be
+            # rendered honestly. Skip metadata-only results rather than showing a
+            # fabricated or truncated date in the user-facing evidence lane.
+            if parsed_date is None or parsed_date < cutoff:
                 continue
             seen.add(key)
             items.append(
@@ -404,7 +424,7 @@ class NewsService:
                     summary=(str(raw.get("body") or "").strip() or None),
                     publisher=(str(raw.get("source") or "").strip() or None),
                     url=url,
-                    published_at=parsed_date.isoformat().replace("+00:00", "Z") if parsed_date else (str(published_at) if published_at else None),
+                    published_at=parsed_date.isoformat().replace("+00:00", "Z"),
                     relevance="medium",
                 )
             )
@@ -412,18 +432,29 @@ class NewsService:
                 break
 
         sources = [
-            SourceRecord(source=item.publisher or "DDGS news search", url=item.url, retrieved_at=utc_stamp(), data_type="news")
+            SourceRecord(source=item.publisher or "DDGS news search", url=item.url, retrieved_at=retrieved_at.isoformat().replace("+00:00", "Z"), data_type="news")
             for item in items
         ]
         return NewsDataResult(items, ServiceState.AVAILABLE, None, sources)
 
     @staticmethod
-    def _parse_date(value: Any) -> datetime | None:
+    def _parse_date(value: Any, *, reference_time: datetime | None = None) -> datetime | None:
         if not value:
             return None
         raw = str(value).strip().replace("Z", "+00:00")
         try:
             parsed = datetime.fromisoformat(raw)
         except ValueError:
-            return None
+            relative = re.search(r"(?P<count>\d+)\s*(?P<unit>minutes?|hours?|days?|weeks?)\s+ago\s*$", raw, flags=re.IGNORECASE)
+            if not relative:
+                return None
+            count = int(relative.group("count"))
+            unit = relative.group("unit").lower()
+            delta = (
+                timedelta(minutes=count) if unit.startswith("minute")
+                else timedelta(hours=count) if unit.startswith("hour")
+                else timedelta(days=count) if unit.startswith("day")
+                else timedelta(weeks=count)
+            )
+            return (reference_time or utc_now()) - delta
         return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)

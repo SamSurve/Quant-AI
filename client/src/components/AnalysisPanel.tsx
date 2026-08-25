@@ -3,7 +3,7 @@
 import { FileText } from "lucide-react";
 import { Streamdown } from "streamdown";
 
-/** Research Observatory visual contract: interpretation follows factual evidence and never impersonates a source record. */
+/** Evidence Briefing visual contract: interpretation follows sourced facts and stays visibly optional. */
 
 function firstMeaningfulLine(markdown: string) {
   return markdown
@@ -18,7 +18,7 @@ export function AnalysisPanel({ analysis, ticker, isLoading, unavailableNotice }
   const preAnalysisLead = unavailableNotice || `A well-formed ${ticker || "company"} brief begins with a sourced signal, then separates evidence from interpretation.`;
 
   return (
-    <section className="ledger-panel overflow-hidden p-5 sm:p-6" aria-label="Research interpretation">
+    <section className="research-section overflow-hidden p-5 sm:p-7" aria-label="Research interpretation">
       <div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
@@ -26,11 +26,11 @@ export function AnalysisPanel({ analysis, ticker, isLoading, unavailableNotice }
               <FileText className="size-3.5" />
             </span>
             <div>
-              <p className="ledger-label">Executive interpretation</p>
-              <h2 className="mt-0.5 font-serif text-xl tracking-[-0.035em] text-[var(--ink)]">Research brief</h2>
+              <p className="ledger-label">Optional interpretation</p>
+              <h2 className="mt-0.5 font-serif text-2xl tracking-[-0.035em] text-[var(--ink)]">Research brief</h2>
             </div>
           </div>
-          <span className="source-chip">Optional interpretation</span>
+          <span className="research-state">AI-assisted</span>
         </div>
 
         {isLoading ? (
@@ -48,9 +48,9 @@ export function AnalysisPanel({ analysis, ticker, isLoading, unavailableNotice }
             </div>
           </div>
         ) : (
-          <div className="mt-8 border-y border-[var(--rule)] bg-[var(--surface-raised)] py-6">
+          <div className="mt-7 border-l-2 border-[var(--provenance)] bg-[var(--surface-raised)] px-5 py-5">
             <div className="flex items-start gap-4"><span className="ledger-aperture grid size-9 shrink-0 place-items-center bg-[var(--surface-subtle)] text-[var(--provenance)]"><FileText className="size-4" /></span><div><p className="ledger-label">Interpretation status</p><p className="mt-3 max-w-3xl border-l-2 border-[var(--research-indigo)] pl-5 font-serif text-[1.72rem] leading-[1.14] tracking-[-0.045em] text-[var(--ink)] sm:text-[2.25rem]">“{preAnalysisLead}”</p></div></div>
-            <div className="mt-6 grid gap-px border border-[var(--rule)] bg-[var(--rule)] text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)] sm:grid-cols-3"><p className="bg-[var(--surface)] px-3 py-2.5">Evidence status · {unavailableNotice ? "available" : "awaiting"}</p><p className="bg-[var(--surface)] px-3 py-2.5">Interpretation · {unavailableNotice ? "temporarily unavailable" : "pending"}</p><p className="bg-[var(--surface)] px-3 py-2.5">Brief type · market context</p></div>
+            <p className="mt-5 text-xs leading-relaxed text-[var(--ink-soft)]">{unavailableNotice ? "The sourced market record remains visible above and below this section." : "Interpretation appears only after a sourced research record is returned."}</p>
           </div>
         )}
       </div>

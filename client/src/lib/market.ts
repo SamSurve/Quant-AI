@@ -5,18 +5,21 @@
 
 import type { TypedResearchResponse } from "@/lib/research";
 
+/** Evidence Briefing contract: only source-returned records reach visual components. */
 export type Metric = { label: string; value: string; tone?: "neutral" | "positive" | "negative" };
 export type ChartPoint = { label: string; value: number };
+export type BriefNewsItem = { title: string; publisher: string | null; publishedAt: string | null; url: string | null; sentiment: string | null };
 export type MarketBrief = {
   companyName: string;
   ticker: string;
   exchange: string;
   sector: string;
   industry: string;
+  quoteLabel: "Current price" | "Latest close";
   quote: string;
   change: string;
   metrics: Metric[];
-  news: string[];
+  news: BriefNewsItem[];
   chart: ChartPoint[];
   analysis: string;
   aiInterpretationNotice: string | null;
@@ -193,10 +196,11 @@ export function parseMarketBrief(markdown: string): MarketBrief {
     exchange: displayValue(findValue(tables, markdown, ["exchange"])),
     sector: displayValue(findValue(tables, markdown, ["sector"])),
     industry: displayValue(findValue(tables, markdown, ["industry"])),
+    quoteLabel: "Current price",
     quote,
     change,
     metrics,
-    news: extractNews(markdown),
+    news: extractNews(markdown).map((title) => ({ title, publisher: null, publishedAt: null, url: null, sentiment: null })),
     chart: extractChart(tables),
     analysis: markdown,
     aiInterpretationNotice: null,
@@ -215,6 +219,7 @@ export const emptyMarketBrief: MarketBrief = {
   exchange: "—",
   sector: "—",
   industry: "—",
+  quoteLabel: "Current price",
   quote: "—",
   change: "Awaiting AgentOS research",
   metrics: metricKeys.map((metric) => ({ label: metric.label, value: "—", tone: "neutral" })),
@@ -307,6 +312,7 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
     exchange: research.company?.exchange || "—",
     sector: research.company?.sector || "—",
     industry: research.company?.industry || "—",
+    quoteLabel: market?.market_status === "HISTORY_CLOSE_FALLBACK" ? "Latest close" : "Current price",
     quote: moneyLabel(market?.current_price, currency),
     change: change === null || change === undefined ? "—" : `${change >= 0 ? "+" : ""}${numberLabel(change, { maximumFractionDigits: 2 })}%`,
     metrics: [
@@ -317,7 +323,13 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
       { label: "Volume", value: numberLabel(market?.volume, { notation: "compact", maximumFractionDigits: 2 }) },
       { label: "Dividend yield", value: market?.dividend_yield === null || market?.dividend_yield === undefined ? "—" : `${numberLabel(market.dividend_yield * 100, { maximumFractionDigits: 2 })}%` },
     ].map((metric) => ({ ...metric, tone: "neutral" as const })),
-    news: (intelligence?.recent_news || deep?.recent_news || research.news).map((item) => [item.publisher, item.sentiment ? item.sentiment.toUpperCase() : null, item.title].filter(Boolean).join(" · ")),
+    news: (intelligence?.recent_news || deep?.recent_news || research.news).map((item) => ({
+      title: item.title,
+      publisher: item.publisher || null,
+      publishedAt: item.published_at || null,
+      url: item.url || null,
+      sentiment: item.sentiment || null,
+    })),
     chart: (intelligence?.price_history?.daily.slice(-60) || research.history)
       .filter((point) => point.close !== null && point.close !== undefined)
       .map((point) => ({ label: point.timestamp.slice(0, 10), value: point.close as number })),

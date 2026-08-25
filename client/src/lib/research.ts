@@ -154,6 +154,18 @@ export type TypedResearchResponse = {
 
 type TypedResearchError = { request_id?: string; category?: ResearchErrorCategory; message?: string; retryable?: boolean };
 
+export type ResearchErrorKind = "ambiguous" | "not_found" | "ai_unavailable" | "news_unavailable" | "other";
+
+/** Classify only safe public error-envelope copy for UI recovery messaging. */
+export function researchErrorKind(message: string): ResearchErrorKind {
+  const normalized = message.toLowerCase();
+  if (/ambiguous|multiple companies match/.test(normalized)) return "ambiguous";
+  if (/not found|unknown|invalid|no supported listed company/.test(normalized)) return "not_found";
+  if (/ai analysis is temporarily unavailable|groq service is busy|provider unavailable/.test(normalized)) return "ai_unavailable";
+  if (/news/.test(normalized)) return "news_unavailable";
+  return "other";
+}
+
 async function readJson(response: Response) {
   const body = await response.text();
   try {

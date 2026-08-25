@@ -27,9 +27,12 @@ from .research_schemas import ErrorCategory, ErrorResponse, ResearchRequest, Res
 app = FastAPI(title="QuantAI Finance Agent API", docs_url="/api/docs", openapi_url="/api/openapi.json")
 LOGGER = logging.getLogger("quantai.api")
 MAX_RESEARCH_REQUEST_BYTES = 8_192
+MAX_AGENTOS_RUN_REQUEST_BYTES = 8_192
 research_orchestrator = ResearchOrchestrator(analysis_service=AnalysisSynthesisService(provider_router))
 research_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
 research_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
+agentos_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
+agentos_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
 
 
 def _request_id(request: Request) -> str:
@@ -56,21 +59,32 @@ def _error_response(request: Request, error: ResearchError) -> JSONResponse:
 @app.middleware("http")
 async def request_context_and_body_limit(request: Request, call_next: Any) -> JSONResponse:
     request.state.request_id = request.headers.get("x-request-id") or str(uuid4())
-    if request.url.path in {"/api/research", "/research"}:
+    typed_research_path = request.url.path in {"/api/research", "/research"}
+    agentos_run_path = request.method == "POST" and request.url.path in {
+        "/api/agents/groq-finance-agent/runs",
+        "/agents/groq-finance-agent/runs",
+    }
+    if typed_research_path or agentos_run_path:
+        request_limit = MAX_RESEARCH_REQUEST_BYTES if typed_research_path else MAX_AGENTOS_RUN_REQUEST_BYTES
         content_length = request.headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > MAX_RESEARCH_REQUEST_BYTES:
+        if content_length and content_length.isdigit() and int(content_length) > request_limit:
             return _error_response(
                 request,
-                ResearchError(ErrorCategory.VALIDATION_ERROR, detail="research request body too large"),
+                ResearchError(ErrorCategory.VALIDATION_ERROR, detail="request body too large"),
             )
-        # Starlette caches this body for downstream JSON validation. This protects
-        # chunked requests that omit Content-Length as well as normal JSON bodies.
-        if len(await request.body()) > MAX_RESEARCH_REQUEST_BYTES:
+        # Starlette caches this body for downstream JSON or multipart validation.
+        # This protects chunked requests that omit Content-Length.
+        if len(await request.body()) > request_limit:
             return _error_response(
                 request,
-                ResearchError(ErrorCategory.VALIDATION_ERROR, detail="research request body too large"),
+                ResearchError(ErrorCategory.VALIDATION_ERROR, detail="request body too large"),
             )
-    response = await call_next(request)
+    if agentos_run_path:
+        await agentos_rate_limiter.check(_client_key(request))
+        async with agentos_concurrency_guard.acquire():
+            response = await call_next(request)
+    else:
+        response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
     return response
 
@@ -120,6 +134,11 @@ def health_payload() -> dict[str, Any]:
             "request_limit_bytes": MAX_RESEARCH_REQUEST_BYTES,
             "anonymous_rate_limit": "10 requests per 60 seconds per warm instance",
             "cache": "process-local TTL cache; not shared across Vercel instances",
+        },
+        "agentos_runs": {
+            "path": "/api/agents/groq-finance-agent/runs",
+            "request_limit_bytes": MAX_AGENTOS_RUN_REQUEST_BYTES,
+            "anonymous_rate_limit": "10 requests per 60 seconds per warm instance",
         },
     }
 

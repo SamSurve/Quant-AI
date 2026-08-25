@@ -114,6 +114,8 @@ def check_agentos_routes() -> None:
             assert health["agent_id"] == "groq-finance-agent"
             assert "provider_runtime" in health
             assert health["provider_runtime"]["configured_count"] == 0
+            assert health["agentos_runs"]["path"] == "/api/agents/groq-finance-agent/runs"
+            assert health["agentos_runs"]["request_limit_bytes"] == 8_192
             assert "GROQ_API_KEY_PRIMARY" not in json.dumps(health)
             assert "GROQ_API_KEY_SECONDARY" not in json.dumps(health)
             assert "OPENROUTER_API_KEY" not in json.dumps(health)
@@ -132,6 +134,21 @@ def check_missing_provider_behavior() -> None:
             assert unavailable_message in body, body
 
 
+def check_agentos_run_protection() -> None:
+    """AgentOS multipart runs must enforce the same public request-size boundary."""
+    with isolated_app(no_provider_environment()) as (app, _):
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/agents/groq-finance-agent/runs",
+                content=b"x" * 9_000,
+                headers={"content-type": "application/octet-stream"},
+            )
+            assert response.status_code == 422, (response.status_code, response.text)
+            body = response.json()
+            assert body["category"] == "VALIDATION_ERROR"
+            assert "request body too large" not in json.dumps(body)
+
+
 def check_configured_provider_agentos_setup() -> None:
     """Keep configured-provider discovery separate without invoking a real provider."""
 
@@ -147,5 +164,6 @@ if __name__ == "__main__":
     check_deployment_files()
     check_agentos_routes()
     check_missing_provider_behavior()
+    check_agentos_run_protection()
     check_configured_provider_agentos_setup()
     print("PRODUCTION_READINESS=PASS")

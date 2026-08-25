@@ -121,3 +121,73 @@ The mark is an **offset aperture**: two stacked, inset ledger brackets pierced b
 **Wordmark & Logo:** Preserve the existing aperture mark, now set against a quiet command-bar field. The mark opens the startup trace and remains the unique anchor of the navigation.
 
 **Signature Brand Color:** **Research Indigo — `#6D7CFF`**, used only for primary workflow action and current workspace context; Signal Teal remains provenance-specific.
+
+## Phase 1 Design Direction — Evidence Briefing
+
+### Three considered approaches
+
+| Theme Name | Very Brief Intro | Probability |
+|---|---|---:|
+| Terminal Ledger | A denser dark research workstation with clear data rails and compact terminal conventions. It would preserve speed, but risks retaining too much technical density. | 0.07 |
+| Evidence Briefing | A warm editorial research document that sequences search, market facts, signals, and sourced reporting. Evidence is available when needed, rather than repeated inside every primary datum. | 0.04 |
+| Signal Canvas | A visually expressive market canvas with a chart and event timeline as the dominant focal point. It would overemphasize visualization relative to source-backed research. | 0.08 |
+
+### Chosen approach
+
+**Evidence Briefing** is the Phase 1 direction. It takes the reference product’s calm, simple research-document cadence and combines it with the current product’s typed, source-backed data architecture. It does not reproduce the reference mechanically; its purpose is to make the real records easier to read.
+
+### Core principles
+
+1. **Search precedes interface.** The primary action is immediately clear before any secondary control competes for attention.
+2. **Facts precede commentary.** Identity, price, snapshot, signal, news, and events are encountered before optional AI interpretation.
+3. **Evidence earns its space.** Sources, freshness, FX records, warnings, and methodology are visible through labelled secondary disclosure, not repeated on every tile.
+4. **Absence is explicit.** Unavailable data, partial coverage, and unavailable AI remain calm factual states rather than decorative blanks.
+
+### Color philosophy
+
+The existing mineral-paper and graphite-night environments remain, but structural borders recede so data and state carry hierarchy. Research Indigo remains the action and focus color. Signal Teal identifies verified source state. Amber and red are restricted to partiality and controlled risk messages.
+
+### Layout paradigm
+
+The desktop product becomes a **research document with a persistent action strip**, rather than a three-column dashboard. A search and identity masthead opens the document. The primary reading column then follows market snapshot, chart and signal, research brief, news and events, and a folded evidence appendix. Comparison and Research Desk remain secondary workspaces revealed through compact controls rather than occupying permanent competing rails.
+
+### Signature elements
+
+The design uses a slim **research pulse rail** under the masthead, concise **editorial metric rows** with section-level provenance, and a **folded evidence appendix** for source/freshness, FX, warnings, and methodology.
+
+### Interaction philosophy
+
+Search remains immediate and keyboard-friendly. Workspace switches remain explicit. Native disclosure reveals advanced evidence with accessible labels. Readers never need to open a disclosure to see live returned research, but never need to scan a wall of metadata to understand it.
+
+### Animation
+
+Motion remains functional and restrained. Search results enter through short opacity and translate transitions. Evidence disclosure uses concise opacity and transform changes. Skeletons appear only while live source records are pending. All non-essential motion respects `prefers-reduced-motion` and stays below 220ms.
+
+### Typography system
+
+**DM Serif Display** carries company identity, report headings, and high-level insight. **DM Sans** handles controls and sourced metadata. **DM Mono** is reserved for tickers, prices, rates, and timestamps. Labels are small and tracked only in secondary evidence contexts.
+
+### Brand essence
+
+**QuantAI is an evidence-first market research desk for people who want sourced facts before interpretation.**
+
+Measured, lucid, disciplined.
+
+### Brand voice
+
+Headlines are direct and report-like. Calls to action name the research action. Microcopy states exactly what is sourced, unavailable, or optional.
+
+> “Search a company, then follow the evidence.”
+
+> “AI interpretation is optional; the sourced record remains available.”
+
+### Wordmark, logo, and signature color
+
+The existing QuantAI aperture mark remains the compact identity anchor. The masthead may pair it with a document-like **Research Desk** descriptor rather than a generic product claim. **Evidence Indigo** remains the ownable action and focus color.
+
+## Style Decisions
+
+- The Phase 1 primary flow is search, market snapshot, key signals, recent news, events, research brief, then sources and evidence.
+- Provenance is section-level in primary reading; full source/freshness, FX, warnings, and methodology remain available through clearly named secondary disclosure.
+- Comparative FX evidence remains explicit whenever normalization occurs and never appears as an implied hidden conversion.
+- The Research Desk remains functional but visually secondary to the sourced research document.

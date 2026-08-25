@@ -126,6 +126,19 @@ class FakeHistoryService:
         return result, FreshnessRecord(state=FreshnessState.LIVE, retrieved_at=STAMP)
 
 
+class UnavailablePulseService:
+    async def fetch(self, entity: CompanyIdentity):
+        pulse = MarketPulseResult(
+            company=entity,
+            market=None,
+            status=ServiceState.UNAVAILABLE,
+            warning=ResearchError(ErrorCategory.DATA_UNAVAILABLE, detail="controlled quote metadata failure", retryable=True),
+            source=None,
+            retrieved_at=None,
+        )
+        return pulse, FreshnessRecord(state=FreshnessState.UNAVAILABLE)
+
+
 class FailingHistoryService:
     async def fetch(self, _entity: CompanyIdentity):
         result = HistoryResult(None, ServiceState.UNAVAILABLE, ResearchError(ErrorCategory.HISTORY_UNAVAILABLE, detail="controlled history failure", retryable=True), None, None)
@@ -239,9 +252,27 @@ async def verify_partial_failures() -> None:
     assert response.market_intelligence and response.market_intelligence.freshness.history.state == FreshnessState.UNAVAILABLE
 
 
+async def verify_history_close_fallback() -> None:
+    response = await ResearchOrchestrator(
+        entity_service=FakeEntityService(),
+        market_pulse_service=UnavailablePulseService(),
+        history_service=FakeHistoryService(),
+        news_service=FakeNewsService(),
+        event_service=FakeEventService(),
+        analysis_service=FailingAnalysisService(),
+    ).research("mi-history-close-fallback", ResearchRequest(query="AAPL", mode=ResearchMode.MARKET_INTELLIGENCE))
+    assert response.market and response.market.current_price == 159.0
+    assert response.market.market_status == "HISTORY_CLOSE_FALLBACK"
+    assert response.market.as_of == daily_history()[-1].timestamp
+    assert response.status.market == ServiceState.PARTIAL
+    assert response.market_intelligence and response.market_intelligence.market_pulse == response.market
+    assert response.market_intelligence.freshness.market.as_of == daily_history()[-1].timestamp
+
+
 verify_signal_methodology()
 asyncio.run(verify_complete_market_intelligence())
 asyncio.run(verify_partial_failures())
+asyncio.run(verify_history_close_fallback())
 
 
 class RouteFakeOrchestrator:

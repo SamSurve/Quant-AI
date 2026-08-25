@@ -5,7 +5,9 @@
 
 export const AGENT_ID = "groq-finance-agent";
 const STORAGE_KEY = "analysts-ledger-agentos-url";
-const DEFAULT_API_URL = import.meta.env.PROD ? "/api" : import.meta.env.VITE_AGENTOS_API_URL || "/api";
+const runtimeEnv = import.meta.env;
+const IS_PRODUCTION = Boolean(runtimeEnv?.PROD);
+const DEFAULT_API_URL = IS_PRODUCTION ? "/api" : runtimeEnv?.VITE_AGENTOS_API_URL || "/api";
 
 export type AgentRunResponse = {
   run_id?: string;
@@ -26,7 +28,7 @@ export function normalizeApiUrl(value: string) {
 }
 
 export function getAgentosUrl() {
-  if (import.meta.env.PROD) return "/api";
+  if (IS_PRODUCTION) return "/api";
   const saved = localStorage.getItem(STORAGE_KEY);
   return normalizeApiUrl(saved === "/agentos" ? "/api" : saved || DEFAULT_API_URL);
 }
@@ -46,7 +48,7 @@ async function readResponse(response: Response) {
   }
 }
 
-function friendlyAgentError(value: unknown, status?: number) {
+export function friendlyAgentError(value: unknown, status?: number) {
   const message = String(value || "");
   const normalized = message.toLowerCase();
   if (
@@ -55,6 +57,12 @@ function friendlyAgentError(value: unknown, status?: number) {
     /temporarily unavailable|rate.?limit|quota|too many requests|service unavailable|overloaded/.test(normalized)
   ) {
     return "AI analysis is temporarily unavailable. Please wait a few minutes and try again; the dashboard is ready for your next request.";
+  }
+  if (status && status >= 500) {
+    return "The Research Desk is temporarily unavailable. Please try again shortly.";
+  }
+  if (status === 401 || status === 403) {
+    return "The Research Desk is unavailable for this session. Please check the configured endpoint.";
   }
   return message || `AgentOS request failed${status ? ` (${status})` : ""}.`;
 }

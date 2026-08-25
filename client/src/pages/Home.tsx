@@ -1,11 +1,12 @@
 /**
- * Analyst's Ledger visual contract: an editorial research desk with a reading rail, evidence column, and AI brief.
- * Live values originate from the unchanged AgentOS finance agent; unavailable data is never fabricated.
+ * Evidence Briefing visual contract: search, verified facts, signals, reporting,
+ * optional interpretation, then an expandable evidence appendix. No data is
+ * displayed unless it originates in the existing typed research or AgentOS flow.
  */
 
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import { AlertCircle, ArrowUpRight, ChevronRight, CircleHelp, LoaderCircle, Menu, Network, Radio, RefreshCw, Search, Settings2, SlidersHorizontal, WifiOff, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, CircleHelp, FileSearch, LoaderCircle, Network, RefreshCw, Search, Settings2, Sparkles, WifiOff, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel, type ChatMessage } from "@/components/ChatPanel";
@@ -14,25 +15,38 @@ import { MarketChart } from "@/components/MarketChart";
 import { MetricCard } from "@/components/MetricCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { fetchAgentInfo, getAgentosUrl, runFinanceAgent, saveAgentosUrl } from "@/lib/agentos";
-import { emptyMarketBrief, marketBriefFromResearch, parseMarketBrief, type MarketBrief } from "@/lib/market";
-import { runCompanyComparison, runTypedResearch, type TypedResearchResponse } from "@/lib/research";
+import { emptyMarketBrief, marketBriefFromResearch, type MarketBrief } from "@/lib/market";
+import { researchErrorKind, runCompanyComparison, runTypedResearch, type TypedResearchResponse } from "@/lib/research";
 
 const starterTickers = ["AAPL", "MSFT", "NVDA", "TSLA"];
-
 type Connection = "checking" | "ready" | "offline";
-type Workspace = "market" | "deep" | "compare";
 type ResearchActivity = { id: string; type: string; query: string; status: string; confidence?: string };
 
 function isTemporaryAiUnavailability(message: string) {
-  return /ai analysis is temporarily unavailable|groq service is busy|provider unavailable/i.test(message);
+  return researchErrorKind(message) === "ai_unavailable";
 }
 
 function recoveryMessage(message: string) {
-  if (/ambiguous/i.test(message)) return "More than one company matched this request. Try a ticker or a more specific company name.";
-  if (/not found|unknown|invalid/i.test(message)) return "No verified company record was found. Check the spelling or search by ticker.";
-  if (isTemporaryAiUnavailability(message)) return "The available research record remains useful, but the optional AI interpretation is temporarily unavailable. Try again shortly.";
-  if (/news/i.test(message)) return "The research record is available with a missing news source. Other sourced evidence remains visible.";
+  const kind = researchErrorKind(message);
+  if (kind === "ambiguous") return "More than one company matched. Try a ticker or a more specific company name.";
+  if (kind === "not_found") return "No verified company record was found. Check the spelling or search by ticker.";
+  if (kind === "ai_unavailable") return "The sourced research record remains useful, but optional AI interpretation is temporarily unavailable.";
+  if (kind === "news_unavailable") return "The research record is available with a missing news source. Other sourced evidence remains visible.";
   return "The request could not complete. Check the research endpoint, then try again.";
+}
+
+function displayDate(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value.slice(0, 10) : parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function availabilityCopy(connection: Connection, researchInFlight: boolean, brief: MarketBrief) {
+  if (researchInFlight) return "Building a sourced research record…";
+  if (connection === "offline") return "Research Desk is unavailable.";
+  if (brief.aiInterpretationNotice) return "Sourced data available · AI interpretation unavailable";
+  if (brief.ticker === "—") return "Ready for a company or ticker.";
+  return "Sourced research record available.";
 }
 
 export default function Home() {
@@ -42,10 +56,9 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [connection, setConnection] = useState<Connection>("checking");
-  const [connectionNote, setConnectionNote] = useState("Checking AgentOS endpoint…");
+  const [connectionNote, setConnectionNote] = useState("Checking Research Desk…");
   const [isResearching, setIsResearching] = useState(false);
   const [activeResearchMode, setActiveResearchMode] = useState<"market_intelligence" | "company_deep_analysis">("market_intelligence");
-  const [workspace, setWorkspace] = useState<Workspace>("market");
   const [companyA, setCompanyA] = useState("AAPL");
   const [companyB, setCompanyB] = useState("MSFT");
   const [comparison, setComparison] = useState<NonNullable<TypedResearchResponse["company_comparison"]> | null>(null);
@@ -54,8 +67,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [endpointDraft, setEndpointDraft] = useState(getAgentosUrl());
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [riskNoticeVisible, setRiskNoticeVisible] = useState(true);
   const [researchActivity, setResearchActivity] = useState<ResearchActivity[]>([]);
 
   async function verifyConnection(apiUrl = getAgentosUrl()) {
@@ -67,26 +78,26 @@ export default function Home() {
       setError(null);
     } catch (connectionError) {
       setConnection("offline");
-      setConnectionNote(connectionError instanceof Error ? connectionError.message : "AgentOS is unavailable.");
+      setConnectionNote(connectionError instanceof Error ? connectionError.message : "Research Desk is unavailable.");
     }
   }
 
-  useEffect(() => {
-    void verifyConnection();
-  }, []);
+  useEffect(() => { void verifyConnection(); }, []);
 
   function recordResearch(type: string, queryLabel: string, status: string, confidence?: string) {
-    setResearchActivity((current) => [{ id: nanoid(), type, query: queryLabel, status, confidence }, ...current].slice(0, 6));
+    setResearchActivity((current) => [{ id: nanoid(), type, query: queryLabel, status, confidence }, ...current].slice(0, 5));
   }
 
   async function requestResearch(symbol = query, mode: "market_intelligence" | "company_deep_analysis" = activeResearchMode) {
     const normalized = symbol.trim();
     if (!normalized || isResearching) return;
     setQuery(normalized);
-    setTicker(normalized.toUpperCase());
     setActiveResearchMode(mode);
-    setWorkspace(mode === "company_deep_analysis" ? "deep" : "market");
     setComparison(null);
+    // Do not relabel a prior verified record with an unverified input while the
+    // entity lookup is pending or fails.  The new ticker appears only after the
+    // typed response proves the resolved company identity.
+    setBrief(emptyMarketBrief);
     setIsResearching(true);
     setError(null);
     try {
@@ -102,9 +113,9 @@ export default function Home() {
       recordResearch(mode === "company_deep_analysis" ? "Deep analysis" : "Market intelligence", typedBrief.ticker === "—" ? normalized : typedBrief.ticker, research.status.overall);
       setConnection("ready");
     } catch (researchError) {
-      const message = researchError instanceof Error ? researchError.message : "Could not generate the market brief.";
+      const message = researchError instanceof Error ? researchError.message : "Could not generate the research record.";
       setError(message);
-      setConnection(isTemporaryAiUnavailability(message) ? "ready" : "offline");
+      setConnection(researchErrorKind(message) === "other" ? "offline" : "ready");
     } finally {
       setIsResearching(false);
     }
@@ -116,7 +127,6 @@ export default function Home() {
     if (!normalizedA || !normalizedB || isResearching) return;
     setIsResearching(true);
     setIsComparing(true);
-    setWorkspace("compare");
     setError(null);
     try {
       const research = await runCompanyComparison(normalizedA, normalizedB, true, getAgentosUrl());
@@ -137,7 +147,7 @@ export default function Home() {
     } catch (comparisonError) {
       const message = comparisonError instanceof Error ? comparisonError.message : "Could not compare the selected companies.";
       setError(message);
-      setConnection(isTemporaryAiUnavailability(message) ? "ready" : "offline");
+      setConnection(researchErrorKind(message) === "other" ? "offline" : "ready");
     } finally {
       setIsResearching(false);
       setIsComparing(false);
@@ -174,227 +184,78 @@ export default function Home() {
   }
 
   const isOffline = connection !== "ready";
+  const hasResearch = brief.ticker !== "—";
+  const hasWarnings = brief.warnings.length > 0 || brief.freshness.length > 0 || brief.sources.length > 0;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="command-bar sticky top-0 z-40 border-b border-[var(--rule)] backdrop-blur-md">
-        <div className="mx-auto flex h-[72px] max-w-[1536px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <BrandMark />
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary research workflows">
-            {[{ id: "market", label: "Market intelligence", value: "market" as Workspace }, { id: "market", label: "Deep analysis", value: "deep" as Workspace }, { id: "compare-controls", label: "Compare", value: "compare" as Workspace }].map((item) => <button key={item.label} type="button" aria-current={workspace === item.value ? "page" : undefined} onClick={() => { setWorkspace(item.value); if (item.value === "deep") setActiveResearchMode("company_deep_analysis"); document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`border-b px-3 py-2 text-xs font-semibold transition-colors ${workspace === item.value ? "border-[var(--research-indigo)] text-[var(--research-indigo)]" : "border-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]"}`}>{item.label}</button>)}
-          </nav>
+          <div className="hidden items-center gap-4 text-xs text-[var(--ink-soft)] sm:flex"><span>Evidence-first market research</span><span className="h-3 w-px bg-[var(--rule)]" /><span className={connection === "ready" ? "text-[var(--provenance)]" : "text-[var(--negative)]"}>{connection === "ready" ? "Research Desk connected" : connection === "checking" ? "Checking Research Desk" : "Research Desk unavailable"}</span></div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <button type="button" onClick={() => void verifyConnection()} className="hidden items-center gap-2 border border-[var(--rule)] bg-[var(--surface-raised)] px-3 py-2 text-xs font-semibold text-[var(--ink-soft)] transition-colors hover:border-[var(--research-indigo)] hover:text-[var(--research-indigo)] sm:flex" title="Check research endpoint">
-              {connection === "checking" ? <LoaderCircle className="size-3.5 animate-spin" /> : connection === "ready" ? <Network className="size-3.5 text-[var(--provenance)]" /> : <WifiOff className="size-3.5 text-[var(--negative)]" />}
-              <span>{connection === "ready" ? "Connected" : connection === "checking" ? "Checking" : "Offline"}</span>
-            </button>
-            <button type="button" onClick={() => setSettingsOpen(true)} className="grid size-9 place-items-center border border-[var(--rule)] bg-[var(--surface-raised)] text-[var(--ink-soft)] transition-colors hover:border-[var(--research-indigo)] hover:text-[var(--research-indigo)]" aria-label="Research endpoint settings">
-              <Settings2 className="size-4" />
-            </button>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid size-9 place-items-center border border-[var(--rule)] bg-[var(--surface-raised)] text-[var(--ink-soft)] lg:hidden" aria-label="Toggle research navigation" aria-expanded={menuOpen}><Menu className="size-4" /></button>
+            <button type="button" onClick={() => void verifyConnection()} className="research-icon-button" title="Check research endpoint" aria-label="Check research endpoint">{connection === "checking" ? <LoaderCircle className="size-4 animate-spin" /> : connection === "ready" ? <Network className="size-4 text-[var(--provenance)]" /> : <WifiOff className="size-4 text-[var(--negative)]" />}</button>
+            <button type="button" onClick={() => setSettingsOpen(true)} className="research-icon-button" aria-label="Research endpoint settings"><Settings2 className="size-4" /></button>
           </div>
         </div>
-        {menuOpen && <nav className="border-t border-[var(--rule)] bg-[var(--surface)] px-4 py-2 lg:hidden" aria-label="Mobile research workflows">{[{ id: "market", label: "Market intelligence", value: "market" as Workspace }, { id: "market", label: "Deep analysis", value: "deep" as Workspace }, { id: "compare-controls", label: "Compare", value: "compare" as Workspace }].map((item) => <button key={item.label} type="button" aria-current={workspace === item.value ? "page" : undefined} onClick={() => { setWorkspace(item.value); if (item.value === "deep") setActiveResearchMode("company_deep_analysis"); setMenuOpen(false); document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`block w-full px-2 py-3 text-left text-sm font-semibold ${workspace === item.value ? "text-[var(--research-indigo)]" : "text-[var(--ink-soft)]"}`}>{item.label}</button>)}</nav>}
       </header>
 
-      <main className="mx-auto max-w-[1536px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        {error && (
-          <div className="mb-5 flex items-start gap-3 border border-[color-mix(in_oklab,var(--negative)_45%,var(--rule))] bg-[color-mix(in_oklab,var(--negative)_8%,var(--surface))] px-4 py-3 text-sm text-[var(--ink)]" role="alert">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--negative)]" />
-            <div className="min-w-0 flex-1"><strong className="font-semibold">Research request needs attention.</strong><p className="mt-1 text-[var(--ink-soft)]">{recoveryMessage(error)}</p></div>
-            <button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss message"><X className="size-4" /></button>
-          </div>
-        )}
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+        {error ? <div className="mb-5 flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_7%,var(--surface))] px-4 py-3 text-sm" role="alert"><AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--negative)]" /><div className="min-w-0 flex-1"><strong className="font-semibold text-[var(--ink)]">Research request needs attention.</strong><p className="mt-1 text-[var(--ink-soft)]">{recoveryMessage(error)}</p></div><button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss message"><X className="size-4" /></button></div> : null}
 
-        <div className="grid gap-5 xl:grid-cols-[180px_minmax(0,1fr)_390px] xl:gap-7">
-          <aside className="hidden xl:block">
-            <div className="sticky top-5 space-y-7">
-              <div>
-                <p className="ledger-label">Desk index</p>
-                <nav className="mt-3 space-y-1 border-l border-[var(--rule)] text-sm" aria-label="Research sections">
-	                  <a href="#market" className="group -ml-px flex items-center gap-3 border-l-2 border-[var(--provenance)] py-2 pl-3 font-semibold text-[var(--ink)]"><span className="size-1.5 rounded-full bg-[var(--provenance)]" />Market view</a>
-	                  <a href="#comparison" className="group flex items-center gap-3 py-2 pl-3 text-[var(--ink-soft)] transition-colors hover:text-[var(--research-indigo)]"><span className="size-1.5 rounded-full bg-[var(--rule-strong)] group-hover:bg-[var(--research-indigo)]" />Comparison</a>
-	                  <a href="#signal" className="group flex items-center gap-3 py-2 pl-3 text-[var(--ink-soft)] transition-colors hover:text-[var(--research-indigo)]"><span className="size-1.5 rounded-full bg-[var(--rule-strong)] group-hover:bg-[var(--research-indigo)]" />Market signal</a>
-	                  <a href="#analysis" className="group flex items-center gap-3 py-2 pl-3 text-[var(--ink-soft)] transition-colors hover:text-[var(--research-indigo)]"><span className="size-1.5 rounded-full bg-[var(--rule-strong)] group-hover:bg-[var(--research-indigo)]" />Research brief</a>
-	                  <a href="#news" className="group flex items-center gap-3 py-2 pl-3 text-[var(--ink-soft)] transition-colors hover:text-[var(--research-indigo)]"><span className="size-1.5 rounded-full bg-[var(--rule-strong)] group-hover:bg-[var(--research-indigo)]" />News flow</a>
-	                  <a href="#sources" className="group flex items-center gap-3 py-2 pl-3 text-[var(--ink-soft)] transition-colors hover:text-[var(--research-indigo)]"><span className="size-1.5 rounded-full bg-[var(--rule-strong)] group-hover:bg-[var(--research-indigo)]" />Sources</a>
-                </nav>
-              </div>
-              <div className="border-t border-[var(--rule)] pt-5">
-                <p className="ledger-label">Data protocol</p>
-                <p className="mt-2 text-xs leading-relaxed text-[var(--ink-soft)]">Source-returned evidence leads every record. Empty fields stay empty until sourced.</p>
-              </div>
-              <div className="border border-[var(--rule)] bg-[var(--surface-raised)] p-4">
-                <p className="ledger-label">Research standard</p>
-                <p className="mt-7 font-serif text-lg leading-tight text-[var(--ink)]">Evidence before conviction.</p>
-                <ArrowUpRight className="mt-4 size-4 text-[var(--research-indigo)]" />
-              </div>
+        <section className="research-masthead" id="market">
+          <div className="research-kicker"><span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Live research</div>
+          <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
+              <p className="max-w-2xl font-serif text-4xl leading-[1.02] tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">Search a company, then follow the evidence.</p>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--ink-soft)]">Market facts, reported news, event records, and optional interpretation stay clearly separated.</p>
             </div>
-          </aside>
-
-          <div className="min-w-0 space-y-5 sm:space-y-6">
-            <section id="market" className="ledger-panel overflow-hidden">
-              <div className="p-5 sm:p-7">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="ledger-aperture grid size-4 place-items-center"><span className="size-1.5 rounded-full bg-[#0e8f83]" /></span>
-                      <p className="ledger-label">Live research canvas</p>
-                    </div>
-                    <div className="mt-4 flex items-end gap-3">
-                      <div><h1 className="font-serif text-5xl tracking-[-0.06em] text-[var(--ink)] sm:text-6xl">{ticker}</h1>{brief.companyName !== "—" && <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-soft)]">{brief.companyName}</p>}</div>
-                      <span className="mb-1.5 border-l border-[var(--rule-strong)] pl-3 text-sm text-[var(--ink-soft)]">{brief.sector !== "—" ? `${brief.sector}${brief.industry !== "—" ? ` · ${brief.industry}` : ""}` : "Financial intelligence for deeper research."}</span>
-                    </div>
-                  </div>
-                  <div className="border-l border-[var(--rule)] pl-4 sm:text-right sm:border-l-0 sm:border-r sm:pr-4 sm:pl-0">
-                    <p className="ledger-label">Current price</p>
-                    <p className="mt-1 font-mono text-2xl font-semibold tracking-[-0.06em] text-[var(--ink)] tabular-nums sm:text-3xl">{isResearching ? <span className="inline-block h-7 w-24 align-middle shimmer-line" /> : brief.quote}</p>
-                    <p className="mt-1 text-xs font-medium text-[var(--positive)]">{isResearching ? (isComparing ? "Preparing comparison evidence" : activeResearchMode === "company_deep_analysis" ? "Validating company evidence" : "Researching market evidence") : brief.change}</p>
-                  </div>
-                </div>
-
-                <form onSubmit={(event) => { event.preventDefault(); void requestResearch(); }} className="mt-7 flex flex-col gap-2 sm:flex-row">
-                  <label className="sr-only" htmlFor="company-search">Search a stock or company</label>
-                  <div className="flex min-w-0 flex-1 items-center gap-3 border border-[var(--rule-strong)] bg-[var(--surface)] px-3.5 py-3 transition-colors focus-within:border-[var(--research-indigo)]">
-                    <Search className="size-4 shrink-0 text-[var(--research-indigo)]" />
-                    <input id="company-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a company or ticker" className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-faint)]" />
-                    <kbd className="hidden border border-[var(--rule)] bg-[var(--surface-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">↵</kbd>
-                  </div>
-                  <button type="submit" disabled={isResearching || !query.trim()} className="flex h-[48px] items-center justify-center gap-2 bg-[var(--research-indigo)] px-5 text-sm font-semibold text-[var(--primary-foreground)] transition-all duration-150 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50">
-                    {isResearching ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}
-                    {isResearching ? "Researching" : "Research market"}
-                  </button>
-                  <button type="button" onClick={() => void requestResearch(query, "company_deep_analysis")} disabled={isResearching || !query.trim()} className={`flex h-[48px] items-center justify-center gap-2 border px-4 text-sm font-semibold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${activeResearchMode === "company_deep_analysis" ? "border-[var(--research-indigo)] bg-[var(--research-indigo-soft)] text-[var(--research-indigo)]" : "border-[var(--rule-strong)] bg-[var(--surface)] text-[var(--ink-soft)] hover:border-[var(--research-indigo)] hover:text-[var(--research-indigo)]"}`}>
-                    <ChevronRight className="size-4" /> Deep analysis
-                  </button>
-                </form>
-	                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="ledger-label mr-1">Quick research</span>
-	                  {starterTickers.map((symbol) => (
-                    <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} disabled={isResearching} className="border-b border-[var(--rule-strong)] pb-0.5 font-mono text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--research-indigo)] hover:text-[var(--research-indigo)] disabled:opacity-50">{symbol}</button>
-	                  ))}
-	                </div>
-                <form id="compare-controls" onSubmit={(event) => { event.preventDefault(); void requestComparison(); }} className="mt-4 grid gap-2 border-t border-[var(--rule)] pt-4 sm:grid-cols-[1fr_1fr_auto]">
-                  <div><label className="ledger-label" htmlFor="company-a">Company A</label><input id="company-a" value={companyA} onChange={(event) => setCompanyA(event.target.value)} placeholder="AAPL" className="mt-1.5 w-full border border-[var(--rule-strong)] bg-[var(--surface)] px-3 py-2.5 font-mono text-sm font-medium text-[var(--ink)] outline-none transition-colors focus:border-[var(--research-indigo)]" /></div>
-                  <div><label className="ledger-label" htmlFor="company-b">Company B</label><input id="company-b" value={companyB} onChange={(event) => setCompanyB(event.target.value)} placeholder="MSFT" className="mt-1.5 w-full border border-[var(--rule-strong)] bg-[var(--surface)] px-3 py-2.5 font-mono text-sm font-medium text-[var(--ink)] outline-none transition-colors focus:border-[var(--research-indigo)]" /></div>
-                  <button type="submit" disabled={isResearching || !companyA.trim() || !companyB.trim()} className="mt-[22px] flex h-[42px] items-center justify-center gap-2 border border-[var(--research-indigo)] bg-[var(--research-indigo-soft)] px-4 text-sm font-semibold text-[var(--research-indigo)] transition-all duration-150 hover:bg-[var(--research-indigo)] hover:text-[var(--primary-foreground)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"><ChevronRight className="size-4" />Compare</button>
-	                </form>
-	                <div className="mt-5 grid border-t border-[#d4ccbf] pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-[#6f7873] sm:grid-cols-3"><p><span className="mr-1 text-[#0e8f83]">▾</span> Source lane · Typed research</p><p className="mt-1 sm:mt-0"><span className="mr-1 text-[#0e8f83]">▾</span> Evidence · {brief.analysis ? "interpreted" : "deterministic only"}</p><p className="mt-1 sm:mt-0 sm:text-right"><span className="mr-1 text-[#0e8f83]">▾</span> {brief.exchange !== "—" ? `Exchange · ${brief.exchange}` : `Status · ${isResearching ? "researching" : "ready"}`}</p></div>
-              </div>
-            </section>
-
-            <section className="ledger-panel overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#e2dbd0] px-5 py-4 sm:px-6">
-                <div>
-                  <p className="ledger-label">Market snapshot</p>
-                  <h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">The evidence, at a glance</h2>
-                </div>
-                <button type="button" onClick={() => void requestResearch(ticker)} disabled={isResearching || isOffline} className="flex items-center gap-2 border border-[#cfc7bb] bg-[#fffdf9] px-3 py-2 text-xs font-semibold text-[#52605a] transition-colors hover:border-[#0e8f83] hover:text-[#0e8f83] disabled:cursor-not-allowed disabled:opacity-45">
-                  <RefreshCw className={`size-3.5 ${isResearching ? "animate-spin" : ""}`} /> Refresh brief
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-px bg-[#e4ddd2] sm:grid-cols-3 lg:grid-cols-6">
-                {brief.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
-              </div>
-            </section>
-
-            <section className="ledger-panel overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 sm:px-6">
-                <div>
-                  <p className="ledger-label">Price history</p>
-                  <h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">Price movement</h2>
-                </div>
-                <span className="source-chip ledger-aperture">Agent supplied</span>
-              </div>
-              <MarketChart data={brief.chart} />
-            </section>
-
-            <section id="signal" className="ledger-panel overflow-hidden">
-              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e2dbd0] px-5 py-4 sm:px-6">
-                <div className="flex items-start gap-2"><span className="ledger-aperture mt-0.5 grid size-4 place-items-center"><span className="size-1.5 bg-[#0e8f83]" /></span><div><p className="ledger-label">Market signal</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">Deterministic observation layer</h2></div></div>
-                {brief.signal && <div className={`border px-3 py-2 font-mono text-xs font-bold ${brief.signal.label === "BULLISH" ? "border-[#9fcfc6] bg-[#edf8f5] text-[#0e756b]" : brief.signal.label === "BEARISH" ? "border-[#e7c9c2] bg-[#fff5f2] text-[#9b4233]" : "border-[#d9d1c5] bg-[#f8f5ef] text-[#5b6762]"}`}>{brief.signal.label}</div>}
-              </div>
-              {brief.signal ? <div className="grid gap-5 p-5 sm:grid-cols-[170px_1fr] sm:p-6"><div className="grid grid-cols-2 gap-2"><div className="border border-[#e2dbd0] bg-[#fffdf9] p-3"><p className="ledger-label">Score</p><p className="mt-2 font-mono text-xl font-semibold text-[#1e2928]">{brief.signal.score}</p></div><div className="border border-[#e2dbd0] bg-[#fffdf9] p-3"><p className="ledger-label">Confidence</p><p className="mt-2 font-mono text-xl font-semibold text-[#1e2928]">{brief.signal.confidence}</p></div></div><div><p className="text-sm leading-relaxed text-[#4d5753]">{brief.signal.explanation}</p><ul className="mt-3 space-y-2 border-l border-[#b9ded7] pl-4 text-xs leading-relaxed text-[#5f6864]">{brief.signal.factors.map((factor) => <li key={factor}>{factor}</li>)}</ul><p className="mt-4 text-[10px] leading-relaxed text-[#7a827e]">{brief.signal.methodology}</p></div></div> : <p className="p-5 text-sm text-[#6e7772]">Signal unavailable until sufficient deterministic history is sourced.</p>}
-            </section>
-
-            <div id="analysis"><AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching} unavailableNotice={brief.aiInterpretationNotice} /></div>
-
-	            {brief.deepAnalysis && (
-              <section id="deep-analysis" className="ledger-panel overflow-hidden">
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e2dbd0] px-5 py-4 sm:px-6"><div className="flex items-start gap-2"><span className="ledger-aperture mt-0.5 grid size-4 place-items-center"><span className="size-1.5 bg-[#0e8f83]" /></span><div><p className="ledger-label">Company deep analysis</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">Evidence before interpretation</h2></div></div><span className="source-chip ledger-aperture">Typed report</span></div>
-                <div className="space-y-0 divide-y divide-[#e5ded3]">
-                  <div className="p-5 sm:p-6"><p className="ledger-label">Company snapshot · factual</p><div className="mt-4 grid gap-px bg-[#e5ded3] sm:grid-cols-2 lg:grid-cols-3">{brief.deepAnalysis.overview.map((item) => <div key={item.label} className="bg-[#fffdf9] px-4 py-3"><p className="ledger-label">{item.label}</p><p className="mt-1 break-words text-sm font-medium text-[#35423e]">{item.value}</p></div>)}</div></div>
-                  <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6"><div><p className="ledger-label">Financial health · factual</p><div className="mt-4 grid grid-cols-2 gap-px bg-[#e5ded3]">{brief.deepAnalysis.financials.map((metric) => <MetricCard key={metric.label} metric={metric} />)}</div></div><div><p className="ledger-label">Financial health · analyst interpretation</p><p className="mt-4 text-sm leading-relaxed text-[#525c57]">{brief.deepAnalysis.interpretation?.financialHealth || brief.aiInterpretationNotice || "AI interpretation unavailable. Deterministic financial values remain above when sourced."}</p></div></div>
-                  <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6"><div><p className="ledger-label">Business model · analyst interpretation</p><p className="mt-3 text-sm leading-relaxed text-[#525c57]">{brief.deepAnalysis.interpretation?.businessModel || brief.aiInterpretationNotice || "AI interpretation unavailable. Refer to the sourced company profile and news records."}</p><p className="mt-5 ledger-label">Governance · factual</p><p className="mt-2 text-sm font-semibold text-[#36433f]">{brief.deepAnalysis.governance.ceo}</p>{brief.deepAnalysis.governance.leadership.length ? <ul className="mt-2 space-y-1 text-xs text-[#68716d]">{brief.deepAnalysis.governance.leadership.map((person) => <li key={person}>{person}</li>)}</ul> : <p className="mt-2 text-xs leading-relaxed text-[#77807b]">No verified leadership record was returned by the governance source; no officer or management claim is inferred.</p>}</div><div><p className="ledger-label">Growth & catalysts · analyst interpretation</p><ul className="mt-3 space-y-2 border-l border-[#b9ded7] pl-4 text-sm leading-relaxed text-[#525c57]">{(brief.deepAnalysis.interpretation?.growthDrivers || []).map((item) => <li key={item}>{item}</li>)}{(brief.deepAnalysis.interpretation?.catalysts || []).map((item) => <li key={item}>{item}</li>)}</ul>{!(brief.deepAnalysis.interpretation?.growthDrivers.length || brief.deepAnalysis.interpretation?.catalysts.length) ? <p className="mt-3 text-sm text-[#6f7873]">{brief.aiInterpretationNotice || "Insufficient verified data."}</p> : null}</div></div>
-                  <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6"><div><p className="ledger-label">Competitive position</p><p className="mt-3 text-sm leading-relaxed text-[#525c57]">{brief.deepAnalysis.interpretation?.competitivePosition || brief.aiInterpretationNotice || "AI interpretation unavailable."}</p><p className="mt-3 text-xs leading-relaxed text-[#77807b]">{brief.deepAnalysis.competitors.note}</p></div><div><p className="ledger-label">Key risks · analyst interpretation</p><ul className="mt-3 space-y-2 border-l border-[#e3c0b9] pl-4 text-sm leading-relaxed text-[#6a4a43]">{(brief.deepAnalysis.interpretation?.risks || []).map((item) => <li key={item}>{item}</li>)}</ul>{!brief.deepAnalysis.interpretation?.risks.length ? <p className="mt-3 text-sm text-[#6f7873]">{brief.aiInterpretationNotice || "Insufficient verified data."}</p> : null}</div></div>
-                  <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6"><div><p className="ledger-label">Valuation · analyst interpretation</p><p className="mt-3 font-mono text-sm font-bold text-[#0e756b]">{brief.deepAnalysis.interpretation?.valuation.classification || "INSUFFICIENT_DATA"}</p><p className="mt-2 text-sm leading-relaxed text-[#525c57]">{brief.deepAnalysis.interpretation?.valuation.rationale || brief.aiInterpretationNotice || "Insufficient verified data."}</p></div><div><p className="ledger-label">Executive assessment · analyst interpretation</p><p className="mt-3 text-sm leading-relaxed text-[#525c57]">{brief.deepAnalysis.interpretation?.assessment || brief.aiInterpretationNotice || "AI interpretation unavailable. Review the sourced facts and partial-data warnings."}</p><p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-[#71807a]">Confidence · {brief.deepAnalysis.interpretation?.confidence || "Unavailable"}</p></div></div>
-                </div>
-	              </section>
-	            )}
-
-            <ComparisonPanel report={comparison} isLoading={isComparing} />
-
-	            <section id="news" className="ledger-panel p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="ledger-label">Recent news</p>
-                  <h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">What is moving the conversation</h2>
-                </div>
-                <SlidersHorizontal className="mt-1 size-4 text-[#0e8f83]" />
-              </div>
-              {isResearching ? (
-                <div className="mt-5 space-y-3"><div className="shimmer-line h-12 w-full" /><div className="shimmer-line h-12 w-[92%]" /><div className="shimmer-line h-12 w-[83%]" /></div>
-              ) : brief.news.length ? (
-                <ol className="mt-5 divide-y divide-[#e5ded3] border-t border-[#e5ded3]">
-                  {brief.news.map((item, index) => <li key={`${item}-${index}`} className="flex gap-4 py-4"><span className="font-mono text-xs text-[#0e8f83]">0{index + 1}</span><p className="text-sm leading-relaxed text-[#3e4845]">{item}</p></li>)}
-                </ol>
-              ) : (
-                <div className="mt-5 border-y border-dashed border-[#ddd5c9] py-0"><div className="grid grid-cols-[auto_1fr] gap-x-4 border-b border-[#eee7dd] py-3"><span className="font-mono text-[10px] text-[#0e8f83]">01</span><p className="text-xs leading-relaxed text-[#737b77]">Source lane reserved for tool-returned news items.</p></div><div className="grid grid-cols-[auto_1fr] gap-x-4 border-b border-[#eee7dd] py-3"><span className="font-mono text-[10px] text-[#0e8f83]">02</span><p className="text-xs leading-relaxed text-[#737b77]">Awaiting a current search result from the finance agent.</p></div><div className="grid grid-cols-[auto_1fr] gap-x-4 py-3"><span className="font-mono text-[10px] text-[#0e8f83]">03</span><p className="text-xs leading-relaxed text-[#737b77]">No unsourced news is shown in this briefing.</p></div></div>
-              )}
-            </section>
-
-            <section className="ledger-panel overflow-hidden">
-              <div className="border-b border-[#e2dbd0] px-5 py-4 sm:px-6"><p className="ledger-label">Event radar</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">Reliable calendar observations</h2></div>
-              {brief.events.length ? <ol className="divide-y divide-[#e7dfd4]">{brief.events.map((event, index) => <li key={`${event.title}-${event.date}-${index}`} className="grid gap-2 px-5 py-4 sm:grid-cols-[110px_1fr_auto] sm:items-center sm:px-6"><span className="font-mono text-xs text-[#0e8f83]">{event.date}</span><div><p className="text-sm font-semibold text-[#33403c]">{event.title}</p><p className="mt-1 text-xs text-[#717a75]">{event.source}</p></div><span className="ledger-label text-[#6c756f]">{event.importance}</span></li>)}</ol> : <p className="px-5 py-5 text-sm text-[#6e7772]">No reliable event date was returned for this request.</p>}
-            </section>
-
-            <section id="sources" className="ledger-panel overflow-hidden">
-              <div className="flex items-start gap-2 border-b border-[#e2dbd0] px-5 py-4 sm:px-6"><span className="ledger-aperture mt-0.5 grid size-4 place-items-center"><span className="size-1.5 bg-[#0e8f83]" /></span><div><p className="ledger-label">Sources & freshness</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[#1d2928]">Evidence provenance</h2></div></div>
-              <div className="grid gap-px bg-[#e7dfd4] sm:grid-cols-2">{brief.freshness.map((item) => <div key={item.label} className="bg-[#fffdf9] px-5 py-3"><p className="ledger-label">{item.label}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#0e8f83]">{item.state} · <span className="normal-case tracking-normal text-[#66706b]">{item.asOf}</span></p></div>)}</div>
-              {brief.sources.length ? <ul className="divide-y divide-[#e7dfd4]">{brief.sources.map((source, index) => <li key={`${source.source}-${source.dataType}-${index}`} className="flex items-start justify-between gap-4 px-5 py-3 text-xs sm:px-6"><div><p className="font-semibold text-[#49544f]">{source.source}</p><p className="mt-1 text-[#7a827e]">{source.dataType} · {source.retrievedAt}</p></div>{source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="shrink-0 text-[#0e8f83] hover:underline">Source</a> : null}</li>)}</ul> : null}
-              {brief.warnings.filter((warning) => warning.category !== "AI_UNAVAILABLE").length ? <div className="border-t border-[#e8c8c1] bg-[#fff7f4] px-5 py-4 text-xs text-[#8b493d] sm:px-6"><p className="font-semibold uppercase tracking-[0.1em]">Partial-data warnings</p><ul className="mt-2 space-y-1">{brief.warnings.filter((warning) => warning.category !== "AI_UNAVAILABLE").map((warning) => <li key={`${warning.category}-${warning.message}`}><span className="font-mono">{warning.category}</span> · {warning.message}</li>)}</ul></div> : null}
-              {brief.warnings.some((warning) => warning.category === "AI_UNAVAILABLE") ? <div className="border-t border-[#bddbd5] bg-[#f1faf7] px-5 py-4 text-xs text-[#38655e] sm:px-6"><p className="font-semibold uppercase tracking-[0.1em]">AI interpretation status</p><p className="mt-2">{brief.aiInterpretationNotice || "AI interpretation is temporarily unavailable. Deterministic market data and evidence remain visible."}</p></div> : null}
-            </section>
+            <p className="research-status max-w-sm">{availabilityCopy(connection, isResearching, brief)}</p>
           </div>
+          <form onSubmit={(event) => { event.preventDefault(); void requestResearch(); }} className="mt-7 flex flex-col gap-2 sm:flex-row">
+            <label className="sr-only" htmlFor="company-search">Search a company or ticker</label>
+            <div className="flex min-w-0 flex-1 items-center gap-3 border border-[var(--rule-strong)] bg-[var(--surface)] px-4 py-3.5 transition-colors focus-within:border-[var(--research-indigo)]"><Search className="size-4 shrink-0 text-[var(--research-indigo)]" /><input id="company-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a company or ticker" className="min-w-0 flex-1 bg-transparent text-base font-medium text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-faint)]" /><kbd className="hidden border border-[var(--rule)] bg-[var(--surface-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">↵</kbd></div>
+            <button type="submit" disabled={isResearching || !query.trim()} className="research-primary-button">{isResearching && !isComparing ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}{isResearching && !isComparing ? "Researching" : "Research"}</button>
+            <button type="button" onClick={() => void requestResearch(query, "company_deep_analysis")} disabled={isResearching || !query.trim()} className="research-secondary-button"><FileSearch className="size-4" /> Deep analysis</button>
+          </form>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--ink-soft)]"><span className="ledger-label">Quick search</span>{starterTickers.map((symbol) => <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} disabled={isResearching} className="font-mono font-semibold transition-colors hover:text-[var(--research-indigo)] disabled:opacity-45">{symbol}</button>)}</div>
+        </section>
 
-          <div className="min-w-0 space-y-5 xl:sticky xl:top-24 xl:self-start">
-            <section className="ledger-panel overflow-hidden" aria-label="Analyst’s Ledger research activity">
-              <div className="border-b border-[var(--rule)] px-5 py-4"><p className="ledger-label">Analyst’s Ledger</p><h2 className="mt-1 font-serif text-xl tracking-[-0.035em] text-[var(--ink)]">Research activity</h2></div>
-              {researchActivity.length ? <ol className="divide-y divide-[var(--rule)]">{researchActivity.map((entry) => <li key={entry.id} className="grid grid-cols-[1fr_auto] gap-3 px-5 py-3"><div><p className="text-xs font-semibold text-[var(--ink)]">{entry.query}</p><p className="mt-1 ledger-label">{entry.type}</p></div><div className="text-right"><p className="font-mono text-[10px] uppercase text-[var(--provenance)]">{entry.status}</p>{entry.confidence ? <p className="mt-1 text-[10px] text-[var(--ink-faint)]">{entry.confidence}</p> : null}</div></li>)}</ol> : <p className="px-5 py-5 text-sm leading-relaxed text-[var(--ink-soft)]">Completed research requests appear here with their returned status and available confidence.</p>}
-            </section>
-            <ChatPanel messages={messages} isLoading={isChatting || isResearching} disabled={isOffline} onSend={sendChat} />
-          </div>
-        </div>
+        <section className="research-identity mt-5" aria-live="polite">
+          <div className="min-w-0"><p className="ledger-label">{hasResearch ? "Company record" : "Research canvas"}</p><div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="font-serif text-4xl tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">{ticker}</h1>{brief.companyName !== "—" ? <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{brief.companyName}</p> : null}</div><p className="mt-2 text-sm text-[var(--ink-soft)]">{brief.sector !== "—" ? [brief.sector, brief.industry, brief.exchange].filter((item) => item && item !== "—").join(" · ") : "Awaiting a verified company record."}</p></div>
+          <div className="research-price"><p className="ledger-label">{brief.quoteLabel}</p><p className="mt-1 font-mono text-3xl font-semibold tracking-[-0.06em] tabular-nums text-[var(--ink)]">{isResearching ? <span className="inline-block h-7 w-24 align-middle shimmer-line" /> : brief.quote}</p><p className={`mt-1 text-xs font-semibold ${brief.change.startsWith("-") ? "text-[var(--negative)]" : "text-[var(--positive)]"}`}>{isResearching ? "Checking current market record" : brief.change}</p></div>
+        </section>
+
+        <section className="research-section mt-8 overflow-hidden" aria-labelledby="snapshot-heading">
+          <div className="research-section-heading"><div><p className="ledger-label">Market snapshot</p><h2 id="snapshot-heading">The record at a glance</h2></div><button type="button" onClick={() => void requestResearch(ticker)} disabled={isResearching || isOffline || !hasResearch} className="research-text-button"><RefreshCw className={`size-3.5 ${isResearching ? "animate-spin" : ""}`} /> Refresh</button></div>
+          <div className="grid grid-cols-2 border-y border-[var(--rule)] sm:grid-cols-3 lg:grid-cols-6">{brief.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}</div>
+          <p className="research-section-foot">Values are shown only when returned by the current market record.</p>
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
+          <section className="research-section overflow-hidden" aria-labelledby="history-heading"><div className="research-section-heading"><div><p className="ledger-label">Price history</p><h2 id="history-heading">Price movement</h2></div><span className="research-state">Returned series only</span></div><MarketChart data={brief.chart} /></section>
+          <section className="research-section overflow-hidden" id="signal" aria-labelledby="signal-heading"><div className="research-section-heading"><div><p className="ledger-label">Key signals</p><h2 id="signal-heading">Market signal</h2></div>{brief.signal ? <span className={`research-state ${brief.signal.label === "BULLISH" ? "text-[var(--positive)]" : brief.signal.label === "BEARISH" ? "text-[var(--negative)]" : ""}`}>{brief.signal.label}</span> : null}</div>{brief.signal ? <div className="p-5"><div className="grid grid-cols-2 gap-5 border-b border-[var(--rule)] pb-5"><div><p className="ledger-label">Score</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.score}</p></div><div><p className="ledger-label">Confidence</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.confidence}</p></div></div><p className="mt-5 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.signal.explanation}</p><ul className="mt-4 space-y-2 text-xs leading-relaxed text-[var(--ink-soft)]">{brief.signal.factors.map((factor) => <li key={factor} className="flex gap-2"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--provenance)]" />{factor}</li>)}</ul><details className="research-details mt-5"><summary>Signal method</summary><p>{brief.signal.methodology}</p></details></div> : <div className="p-5"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">Signal unavailable until sufficient deterministic history is sourced.</p></div>}</section>
+        </section>
+
+        <div className="mt-8" id="analysis"><AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching && !isComparing} unavailableNotice={brief.aiInterpretationNotice} /></div>
+
+        {brief.deepAnalysis ? <details className="research-disclosure mt-8" open={activeResearchMode === "company_deep_analysis"}><summary><span><span className="ledger-label">Company report</span><strong>Deep analysis</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-2"><div><p className="ledger-label">Company profile</p><dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.overview.slice(0, 8).map((item) => <div key={item.label}><dt className="ledger-label">{item.label}</dt><dd className="mt-1 text-sm text-[var(--ink)]">{item.value}</dd></div>)}</dl></div><div><p className="ledger-label">Financial health</p><div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.financials.slice(0, 6).map((metric) => <div key={metric.label}><p className="ledger-label">{metric.label}</p><p className="mt-1 font-mono text-sm text-[var(--ink)]">{metric.value}</p></div>)}</div></div></div><div className="mt-7 grid gap-7 border-t border-[var(--rule)] pt-6 lg:grid-cols-2"><div><p className="ledger-label">Governance</p><p className="mt-2 text-sm font-semibold text-[var(--ink)]">{brief.deepAnalysis.governance.ceo}</p>{brief.deepAnalysis.governance.leadership.length ? <ul className="mt-3 space-y-1 text-xs text-[var(--ink-soft)]">{brief.deepAnalysis.governance.leadership.map((person) => <li key={person}>{person}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--ink-soft)]">No verified leadership record was returned.</p>}</div><div><p className="ledger-label">Competitive evidence</p><p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.deepAnalysis.competitors.note}</p></div></div></div></details> : null}
+
+        <section className="research-section mt-8 overflow-hidden" id="news" aria-labelledby="news-heading"><div className="research-section-heading"><div><p className="ledger-label">Recent news</p><h2 id="news-heading">What is moving the conversation</h2></div><span className="research-state">Sourced reporting</span></div>{isResearching ? <div className="space-y-3 p-5"><div className="shimmer-line h-5 w-full" /><div className="shimmer-line h-5 w-[86%]" /><div className="shimmer-line h-5 w-[72%]" /></div> : brief.news.length ? <ol className="divide-y divide-[var(--rule)]">{brief.news.slice(0, 6).map((item, index) => <li key={`${item.title}-${index}`} className="grid gap-2 px-5 py-4 sm:grid-cols-[2.5rem_1fr_auto] sm:items-start sm:px-7"><span className="font-mono text-xs text-[var(--provenance)]">{String(index + 1).padStart(2, "0")}</span><div><p className="text-sm leading-relaxed text-[var(--ink)]">{item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="transition-colors hover:text-[var(--research-indigo)] hover:underline">{item.title}</a> : item.title}</p><p className="mt-1 text-xs text-[var(--ink-faint)]">{[item.publisher, displayDate(item.publishedAt)].filter(Boolean).join(" · ") || "Source metadata unavailable"}</p></div>{item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="research-source-link">Open source <ChevronRight className="size-3" /></a> : null}</li>)}</ol> : <div className="p-5 sm:p-7"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">No sourced recent news was returned for this request.</p></div>}</section>
+
+        <section className="research-section mt-8 overflow-hidden" aria-labelledby="events-heading"><div className="research-section-heading"><div><p className="ledger-label">Events</p><h2 id="events-heading">Calendar records</h2></div></div>{brief.events.length ? <ol className="divide-y divide-[var(--rule)]">{brief.events.map((event, index) => <li key={`${event.title}-${event.date}-${index}`} className="grid gap-2 px-5 py-4 sm:grid-cols-[9rem_1fr_auto] sm:items-center sm:px-7"><span className="font-mono text-xs text-[var(--provenance)]">{event.date}</span><div><p className="text-sm font-semibold text-[var(--ink)]">{event.title}</p><p className="mt-1 text-xs text-[var(--ink-faint)]">{event.source}</p></div><span className="research-state">{event.importance}</span></li>)}</ol> : <div className="p-5 sm:p-7"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">No reliable event record was returned for this request.</p></div>}</section>
+
+        <details className="research-disclosure mt-8" id="comparison"><summary><span><span className="ledger-label">Research tool</span><strong>Compare two companies</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><form onSubmit={(event) => { event.preventDefault(); void requestComparison(); }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><label><span className="ledger-label">Company A</span><input value={companyA} onChange={(event) => setCompanyA(event.target.value)} placeholder="AAPL" className="research-input mt-2" /></label><label><span className="ledger-label">Company B</span><input value={companyB} onChange={(event) => setCompanyB(event.target.value)} placeholder="MSFT" className="research-input mt-2" /></label><button type="submit" disabled={isResearching || !companyA.trim() || !companyB.trim()} className="research-secondary-button mt-[22px] h-[48px]"><ChevronRight className="size-4" /> Compare</button></form><ComparisonPanel report={comparison} isLoading={isComparing} /></div></details>
+
+        {hasWarnings ? <details className="research-disclosure mt-8" id="sources"><summary><span><span className="ledger-label">Evidence appendix</span><strong>Sources, freshness, and research notes</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-[.85fr_1.15fr]"><div><p className="ledger-label">Freshness</p><div className="mt-3 space-y-2">{brief.freshness.length ? brief.freshness.map((item) => <div key={item.label} className="flex items-center justify-between gap-3 border-b border-[var(--rule)] py-2 text-xs"><span className="font-semibold text-[var(--ink)]">{item.label}</span><span className="text-right text-[var(--ink-soft)]">{item.state} · {item.asOf}</span></div>) : <p className="text-sm text-[var(--ink-soft)]">No freshness record was returned.</p>}</div></div><div><p className="ledger-label">Source records</p>{brief.sources.length ? <ul className="mt-3 divide-y divide-[var(--rule)]">{brief.sources.map((source, index) => <li key={`${source.source}-${source.dataType}-${index}`} className="flex items-start justify-between gap-4 py-3 text-xs"><div><p className="font-semibold text-[var(--ink)]">{source.source}</p><p className="mt-1 text-[var(--ink-faint)]">{source.dataType} · {source.retrievedAt}</p></div>{source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="research-source-link">Open source <ChevronRight className="size-3" /></a> : null}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--ink-soft)]">No source records were returned.</p>}</div></div>{brief.warnings.length ? <div className="mt-7 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_6%,var(--surface))] px-4 py-3"><p className="ledger-label">Research notes</p><ul className="mt-2 space-y-1 text-xs leading-relaxed text-[var(--ink-soft)]">{brief.warnings.map((warning) => <li key={`${warning.category}-${warning.message}`}>{warning.message}</li>)}</ul></div> : null}</div></details> : null}
+
+        <details className="research-disclosure mt-8"><summary><span><span className="ledger-label">Research Desk</span><strong>Ask the finance agent</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_16rem]"><ChatPanel messages={messages} isLoading={isChatting || isResearching} disabled={isOffline} onSend={sendChat} /><aside className="border-l border-[var(--rule)] pl-5"><p className="ledger-label">Recent activity</p>{researchActivity.length ? <ol className="mt-3 space-y-3">{researchActivity.map((entry) => <li key={entry.id}><p className="text-sm font-semibold text-[var(--ink)]">{entry.query}</p><p className="mt-1 text-xs text-[var(--ink-soft)]">{entry.type} · {entry.status}{entry.confidence ? ` · ${entry.confidence}` : ""}</p></li>)}</ol> : <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">Research activity appears after a returned request.</p>}</aside></div></div></details>
       </main>
 
-      <footer className="mx-auto mt-4 flex max-w-[1580px] flex-col justify-between gap-2 border-t border-[#ddd6cb] px-4 py-5 text-[11px] text-[#78817c] sm:flex-row sm:px-6 lg:px-8">
-        <p>Dashboard interface only. Agent logic runs through QuantAI with AgentOS, YFinance, and web/news search tools.</p>
-        <p className="font-mono">{connection === "ready" ? connectionNote : "AgentOS endpoint requires attention"}</p>
-      </footer>
+      <footer className="mx-auto mt-10 flex max-w-6xl flex-col justify-between gap-2 border-t border-[var(--rule)] px-4 py-5 text-[11px] text-[var(--ink-faint)] sm:flex-row sm:px-6 lg:px-8"><p>QuantAI separates sourced research evidence from optional interpretation.</p><p className="font-mono">{connection === "ready" ? connectionNote : "Research endpoint requires attention"}</p></footer>
 
-      {riskNoticeVisible && <aside className="fixed bottom-4 right-4 z-30 max-w-[290px] border border-[var(--rule-strong)] bg-[var(--surface)] px-3 py-2.5 text-xs leading-relaxed text-[var(--ink-soft)] shadow-[0_10px_24px_rgba(0,0,0,.12)]" role="note"><div className="flex gap-2"><AlertCircle className="mt-0.5 size-3.5 shrink-0 text-[var(--research-indigo)]" aria-hidden="true" /><p>Markets involve risk. Continue researching and analyzing before making decisions.</p><button type="button" onClick={() => setRiskNoticeVisible(false)} className="-mt-0.5 text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss market-risk reminder"><X className="size-3.5" /></button></div></aside>}
-
-      {settingsOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[#1c2726]/35 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label="AgentOS connection settings">
-          <div className="w-full max-w-md border border-[#d6cec2] bg-[#fffdf9] p-5 shadow-[0_24px_60px_rgba(18,29,28,.25)]">
-            <div className="flex items-start justify-between gap-4"><div><p className="ledger-label">Connection settings</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em]">AgentOS endpoint</h2></div><button type="button" onClick={() => setSettingsOpen(false)} className="text-[#68716d] hover:text-[#1e2928]" aria-label="Close settings"><X className="size-5" /></button></div>
-            <p className="mt-3 text-sm leading-relaxed text-[#69716e]">This frontend uses the same-origin <code className="bg-[#f1ede5] px-1 font-mono text-xs">/api</code> route in production, keeping the provider-aware QuantAI AgentOS function behind the deployed application. Local Vite development proxies that route to <code className="bg-[#f1ede5] px-1 font-mono text-xs">http://127.0.0.1:7777</code>. For a deliberately separate AgentOS service, enter its public base URL here.</p>
-            <label className="mt-5 block"><span className="ledger-label">Base URL</span><input value={endpointDraft} onChange={(event) => setEndpointDraft(event.target.value)} className="mt-2 w-full border border-[#cfc7bb] bg-[#fffefb] px-3 py-3 font-mono text-sm text-[#283230] outline-none focus:border-[#0e8f83] focus:ring-2 focus:ring-[#0e8f83]/10" /></label>
-            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setSettingsOpen(false)} className="px-4 py-2.5 text-sm font-semibold text-[#66706b] hover:text-[#1e2928]">Cancel</button><button type="button" onClick={saveEndpoint} className="bg-[#1e2928] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0e8f83]">Save & test</button></div>
-          </div>
-        </div>
-      )}
+      {settingsOpen ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Research endpoint settings"><div className="w-full max-w-md bg-[var(--surface)] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="ledger-label">Connection settings</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em] text-[var(--ink)]">Research Desk endpoint</h2></div><button type="button" onClick={() => setSettingsOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close settings"><X className="size-5" /></button></div><p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">Production uses the same-origin <code className="research-code">/api</code> route. Local Vite development proxies this route to the local backend.</p><label className="mt-5 block"><span className="ledger-label">Base URL</span><input value={endpointDraft} onChange={(event) => setEndpointDraft(event.target.value)} className="research-input mt-2" /></label><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setSettingsOpen(false)} className="research-text-button">Cancel</button><button type="button" onClick={saveEndpoint} className="research-primary-button">Save and test</button></div></div></div> : null}
     </div>
   );
 }

@@ -33,6 +33,7 @@ from .research_schemas import (
     FreshnessState,
     MarketIntelligenceFreshness,
     MarketIntelligenceReport,
+    MarketSnapshot,
     OverallState,
     ResearchRequest,
     ResearchResponse,
@@ -128,6 +129,32 @@ def _standard_ai_context(research: ResearchResponse) -> dict[str, Any]:
         "market_signal": intelligence.market_signal.model_dump(mode="json") if intelligence and intelligence.market_signal else None,
         "service_status": research.status.model_dump(mode="json"),
     }
+
+
+def _history_close_fallback(history: Any, currency: str | None) -> MarketSnapshot | None:
+    """Expose the latest dated close only when the quote metadata source has no usable price."""
+
+    points = list(getattr(history, "daily", None) or getattr(history, "intraday", None) or [])
+    closes = [point for point in points if point.close is not None]
+    if not closes:
+        return None
+    latest = closes[-1]
+    previous = closes[-2] if len(closes) > 1 else None
+    daily_change = latest.close - previous.close if previous and previous.close is not None else None
+    daily_change_percent = (
+        (daily_change / previous.close) * 100
+        if daily_change is not None and previous and previous.close not in {None, 0}
+        else None
+    )
+    return MarketSnapshot(
+        current_price=latest.close,
+        currency=currency,
+        daily_change=daily_change,
+        daily_change_percent=daily_change_percent,
+        volume=latest.volume,
+        market_status="HISTORY_CLOSE_FALLBACK",
+        as_of=latest.timestamp,
+    )
 
 
 class AnalysisSynthesisService:
@@ -804,12 +831,14 @@ class ResearchOrchestrator:
             response.status.market = ServiceState.UNAVAILABLE
             response.warnings.append(self._warning(self._unexpected_error(pulse_outcome, ErrorCategory.DATA_UNAVAILABLE)))
 
+        history_bundle = None
         if not isinstance(history_outcome, BaseException):
             history, history_freshness = history_outcome
+            history_bundle = history.history
             response.status.history = history.status
-            if history.history:
+            if history_bundle:
                 # Preserve the legacy root history surface with a lightweight chart window.
-                response.history = history.history.daily[-60:] or history.history.intraday
+                response.history = history_bundle.daily[-60:] or history_bundle.intraday
             if history.source:
                 response.sources.append(history.source)
             if history.warning:
@@ -817,6 +846,30 @@ class ResearchOrchestrator:
         else:
             response.status.history = ServiceState.UNAVAILABLE
             response.warnings.append(self._warning(self._unexpected_error(history_outcome, ErrorCategory.HISTORY_UNAVAILABLE)))
+
+        if response.market is None or response.market.current_price is None:
+            fallback_market = _history_close_fallback(history_bundle, response.company.currency if response.company else entity.company.currency)
+            if fallback_market:
+                if response.market is not None:
+                    fallback_market = response.market.model_copy(
+                        update={
+                            "current_price": fallback_market.current_price,
+                            "currency": response.market.currency or fallback_market.currency,
+                            "daily_change": response.market.daily_change if response.market.daily_change is not None else fallback_market.daily_change,
+                            "daily_change_percent": response.market.daily_change_percent if response.market.daily_change_percent is not None else fallback_market.daily_change_percent,
+                            "volume": response.market.volume if response.market.volume is not None else fallback_market.volume,
+                            "market_status": "HISTORY_CLOSE_FALLBACK",
+                            "as_of": fallback_market.as_of,
+                        }
+                    )
+                response.market = fallback_market
+                response.status.market = ServiceState.PARTIAL
+                market_freshness = FreshnessRecord(
+                    state=history_freshness.state,
+                    retrieved_at=history_freshness.retrieved_at,
+                    as_of=fallback_market.as_of,
+                    cache_scope=history_freshness.cache_scope,
+                )
 
         if not isinstance(news_outcome, BaseException):
             news = news_outcome
@@ -847,7 +900,7 @@ class ResearchOrchestrator:
             response.status.events = ServiceState.UNAVAILABLE
             response.warnings.append(self._warning(self._unexpected_error(events_outcome, ErrorCategory.EVENTS_UNAVAILABLE)))
 
-        price_history = history.history if not isinstance(history_outcome, BaseException) else None
+        price_history = history_bundle
         signal = calculate_market_signal(price_history.daily) if price_history and price_history.daily else None
         if signal:
             response.sources.append(SourceRecord(source="QuantAI deterministic signal methodology", retrieved_at=self._now_stamp(), data_type="signal"))

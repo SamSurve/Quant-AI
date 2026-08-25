@@ -264,6 +264,15 @@ async def verify_entity_validation_and_ambiguity() -> None:
             ],
             "TMCV.NS",
         ),
+        "TCS": (
+            [
+                CompanyCandidate(symbol="0221.KL", name="TCS Group Holdings Berhad", exchange="KLS", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TCSH.TO", name="TCS Holdings Inc.", exchange="TOR", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TCS.NS", name="Tata Consultancy Services Limited", exchange="NSI", quote_type="EQUITY"),
+                CompanyCandidate(symbol="TCS.TO", name="TCS Transport Canada Inc.", exchange="TOR", quote_type="EQUITY"),
+            ],
+            "TCS.NS",
+        ),
     }
     for query, (candidates, expected_symbol) in company_name_cases.items():
         resolver = EntityResolutionService()
@@ -283,6 +292,18 @@ async def verify_entity_validation_and_ambiguity() -> None:
         assert error.category == ErrorCategory.AMBIGUOUS_ENTITY
     else:
         raise AssertionError("equally strong company-name candidates must remain ambiguous")
+
+    preferred_exchange_is_not_identity = EntityResolutionService()
+    preferred_exchange_is_not_identity._search_candidates = lambda _query: [
+        CompanyCandidate(symbol="RS", name="Reliance Steel & Aluminum Co.", exchange="NYQ", quote_type="EQUITY"),
+        CompanyCandidate(symbol="RELIANCE.NS", name="Reliance Industries Limited", exchange="NSI", quote_type="EQUITY"),
+    ]
+    try:
+        await preferred_exchange_is_not_identity.resolve("Reliance")
+    except ResearchError as error:
+        assert error.category == ErrorCategory.AMBIGUOUS_ENTITY
+    else:
+        raise AssertionError("a preferred exchange must not select a broad company-name prefix")
 
     invalid = EntityResolutionService()
     invalid._search_candidates = lambda _query: []
@@ -323,6 +344,9 @@ async def verify_market_and_news_adapters() -> None:
                 {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": "2026-08-24T00:00:00Z", "body": "Summary"},
                 {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": "2026-08-24T00:00:00Z", "body": "Duplicate"},
                 {"title": "Old item", "url": "https://example.test/old", "source": "Example", "date": "2020-01-01T00:00:00Z", "body": "Old"},
+                {"title": "Relative item", "url": "https://example.test/relative", "source": "Example", "date": "Opinion1 day ago", "body": "Relative"},
+                {"title": "Old relative item", "url": "https://example.test/old-relative", "source": "Example", "date": "Opinion45 days ago", "body": "Old relative"},
+                {"title": "Undated item", "url": "https://example.test/undated", "source": "Example", "date": "Editorial desk", "body": "No date"},
             ]
 
     original_ddgs = services_module.DDGS
@@ -330,8 +354,10 @@ async def verify_market_and_news_adapters() -> None:
         services_module.DDGS = FakeDDGS
         news = await NewsService().fetch(company())
         assert news.status == ServiceState.AVAILABLE
-        assert len(news.items) == 1
+        assert len(news.items) == 2
         assert news.items[0].url == "https://example.test/a"
+        assert news.items[1].url == "https://example.test/relative"
+        assert all(item.published_at and item.published_at.endswith("Z") for item in news.items)
     finally:
         services_module.DDGS = original_ddgs
 
