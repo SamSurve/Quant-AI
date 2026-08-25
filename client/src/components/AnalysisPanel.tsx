@@ -3,7 +3,7 @@
 import { FileText } from "lucide-react";
 import { Streamdown } from "streamdown";
 
-/** Evidence Briefing visual contract: interpretation follows sourced facts and stays visibly optional. */
+/** Final UI Polish visual contract: optional interpretation has a stronger editorial anchor while sourced facts remain primary. */
 
 function firstMeaningfulLine(markdown: string) {
   return markdown
@@ -18,7 +18,7 @@ export function AnalysisPanel({ analysis, ticker, isLoading, unavailableNotice }
   const preAnalysisLead = unavailableNotice || `A well-formed ${ticker || "company"} brief begins with a sourced signal, then separates evidence from interpretation.`;
 
   return (
-    <section className="research-section overflow-hidden p-5 sm:p-7" aria-label="Research interpretation">
+    <section className="research-section research-analysis-panel overflow-hidden p-5 sm:p-7" aria-label="Research interpretation">
       <div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">

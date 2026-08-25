@@ -3,7 +3,7 @@
 import type { Metric } from "@/lib/market";
 import { cn } from "@/lib/utils";
 
-/** Evidence Briefing visual contract: concise facts, with provenance disclosed at section level. */
+/** Final UI Polish visual contract: concise facts become a denser, clearly scannable evidence ledger without adding data. */
 
 export function MetricCard({ metric }: { metric: Metric }) {
   return (

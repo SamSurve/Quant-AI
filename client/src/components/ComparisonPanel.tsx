@@ -1,4 +1,4 @@
-/** Evidence Briefing visual contract: headline comparison first; validated FX, metrics, and source lanes remain discoverable on demand. */
+/** Final UI Polish visual contract: headline comparison, verified FX, metrics, and source lanes gain denser editorial framing without changing evidence. */
 
 import { ArrowRight, Scale } from "lucide-react";
 import { categoryLabel, comparisonLabel, comparisonValue, winnerLabel, type ComparisonReport } from "@/lib/comparison";
@@ -30,7 +30,7 @@ export function ComparisonPanel({ report, isLoading }: ComparisonPanelProps) {
   const headlineMetrics = report.metrics.filter((metric) => ["market_cap", "revenue", "net_income", "pe_ratio", "profit_margin", "free_cash_flow"].includes(metric.metric)).slice(0, 6);
 
   return (
-    <section className="mt-7 border-t border-[var(--rule)] pt-6" aria-label="Company comparison report">
+    <section className="comparison-report mt-7 border-t border-[var(--rule)] pt-6" aria-label="Company comparison report">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-2.5"><span className="ledger-aperture grid size-8 place-items-center bg-[var(--surface-subtle)] text-[var(--research-indigo)]"><Scale className="size-3.5" /></span><div><p className="ledger-label">Comparison result</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em] text-[var(--ink)]">{aTicker} <span className="font-sans text-sm tracking-normal text-[var(--ink-faint)]">vs</span> {bTicker}</h2></div></div>
         <p className={`max-w-xs text-right text-sm font-semibold ${winnerClass(report.overall_advantage)}`}>{winnerLabel(report.overall_advantage, aTicker, bTicker)}</p>
