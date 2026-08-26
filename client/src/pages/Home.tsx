@@ -1,6 +1,8 @@
 /**
  * Evidence Briefing visual contract: search, verified facts, signals, reporting,
- * optional interpretation, then an expandable evidence appendix. No data is
+ * optional interpretation, then an expandable evidence appendix. The Research
+ * Canvas distinguishes a typed input from a verified record through hierarchy and
+ * layout—not fabricated content or an automatic network request. No data is
  * displayed unless it originates in the existing typed research or AgentOS flow.
  * Recent News renders the provider-supplied summary only when the typed response includes it.
  */
@@ -254,6 +256,19 @@ export default function Home() {
   const isOffline = connection !== "ready";
   const hasResearch = brief.ticker !== "—";
   const hasWarnings = brief.warnings.length > 0 || brief.freshness.length > 0 || brief.sources.length > 0;
+  const canvasQuery = query.trim();
+  const canvasLabel = hasResearch ? "Company record" : isResearching ? "Research canvas · verifying" : "Research canvas";
+  const canvasTitle = hasResearch ? ticker : isResearching ? "Verifying company record" : "No verified company yet";
+  const canvasDescription = hasResearch
+    ? [brief.sector, brief.industry, brief.exchange].filter((item) => item && item !== "—").join(" · ")
+    : isResearching
+      ? `Checking a live research record for ${canvasQuery || "the selected query"}.`
+      : canvasQuery
+        ? `“${canvasQuery}” is ready in the search field but has not been researched.`
+        : "Enter a listed company or ticker, then select Research to build a sourced record.";
+  const canvasStatus = hasResearch ? brief.quoteLabel : isResearching ? "Researching" : "Not researched";
+  const canvasValue = hasResearch ? brief.quote : "—";
+  const canvasDetail = hasResearch ? brief.change : isResearching ? "Checking current market record" : "Select Research to source a live record";
   const selectedSeries = useMemo(() => periodSeries(brief, activeHistoryPeriod), [brief, activeHistoryPeriod]);
   const selectedPerformance = useMemo(() => performanceSummary(selectedSeries), [selectedSeries]);
   const availableFinancials = useMemo(() => (brief.deepAnalysis?.financials || []).filter((metric) => metric.value !== "—"), [brief.deepAnalysis]);
@@ -306,9 +321,9 @@ export default function Home() {
           <span className="company-research-rail__status">{hasResearch ? `${ticker} · ${brief.quoteLabel.toLowerCase()}` : "Awaiting verified company"}</span>
         </nav>
 
-        <section className="research-identity mt-5" aria-live="polite">
-          <div className="min-w-0"><p className="ledger-label">{hasResearch ? "Company record" : "Research canvas"}</p><div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="font-serif text-4xl tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">{ticker}</h1>{brief.companyName !== "—" ? <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{brief.companyName}</p> : null}</div><p className="mt-2 text-sm text-[var(--ink-soft)]">{brief.sector !== "—" ? [brief.sector, brief.industry, brief.exchange].filter((item) => item && item !== "—").join(" · ") : "Awaiting a verified company record."}</p></div>
-          <div className="research-price"><p className="ledger-label">{brief.quoteLabel}</p><p className="mt-1 font-mono text-3xl font-semibold tracking-[-0.06em] tabular-nums text-[var(--ink)]">{isResearching ? <span className="inline-block h-7 w-24 align-middle shimmer-line" /> : brief.quote}</p><p className={`mt-1 text-xs font-semibold ${brief.change.startsWith("-") ? "text-[var(--negative)]" : "text-[var(--positive)]"}`}>{isResearching ? "Checking current market record" : brief.change}</p></div>
+        <section className={`research-identity mt-5 ${hasResearch ? "is-verified" : "is-pending"}`} aria-live="polite">
+          <div className="research-identity__content"><p className="ledger-label">{canvasLabel}</p><div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="font-serif text-4xl tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">{canvasTitle}</h1>{hasResearch && brief.companyName !== "—" ? <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{brief.companyName}</p> : null}</div><p className="research-identity__description">{canvasDescription}</p>{!hasResearch && canvasQuery ? <p className="research-identity__query"><span className="ledger-label">Search input</span><span className="font-mono font-semibold text-[var(--ink)]">{canvasQuery}</span></p> : null}</div>
+          <div className="research-price"><p className="ledger-label">{canvasStatus}</p><p className="mt-1 font-mono text-3xl font-semibold tracking-[-0.06em] tabular-nums text-[var(--ink)]">{isResearching ? <span className="inline-block h-7 w-24 align-middle shimmer-line" /> : canvasValue}</p><p className={`mt-1 text-xs font-semibold ${hasResearch && brief.change.startsWith("-") ? "text-[var(--negative)]" : hasResearch ? "text-[var(--positive)]" : "text-[var(--ink-faint)]"}`}>{canvasDetail}</p></div>
         </section>
 
         <section className="research-section mt-8 overflow-hidden" aria-labelledby="snapshot-heading">
