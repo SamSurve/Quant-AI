@@ -8,7 +8,7 @@ import type { TypedResearchResponse } from "@/lib/research";
 /** Evidence Briefing contract: only source-returned records reach visual components. */
 export type Metric = { label: string; value: string; tone?: "neutral" | "positive" | "negative" };
 export type ChartPoint = { label: string; value: number };
-export type BriefNewsItem = { title: string; publisher: string | null; publishedAt: string | null; url: string | null; sentiment: string | null };
+export type BriefNewsItem = { title: string; summary: string | null; publisher: string | null; publishedAt: string | null; url: string | null; sentiment: string | null };
 export type MarketBrief = {
   companyName: string;
   ticker: string;
@@ -200,7 +200,7 @@ export function parseMarketBrief(markdown: string): MarketBrief {
     quote,
     change,
     metrics,
-    news: extractNews(markdown).map((title) => ({ title, publisher: null, publishedAt: null, url: null, sentiment: null })),
+    news: extractNews(markdown).map((title) => ({ title, summary: null, publisher: null, publishedAt: null, url: null, sentiment: null })),
     chart: extractChart(tables),
     analysis: markdown,
     aiInterpretationNotice: null,
@@ -325,6 +325,7 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
     ].map((metric) => ({ ...metric, tone: "neutral" as const })),
     news: (intelligence?.recent_news || deep?.recent_news || research.news).map((item) => ({
       title: item.title,
+      summary: item.summary?.trim() || null,
       publisher: item.publisher || null,
       publishedAt: item.published_at || null,
       url: item.url || null,
