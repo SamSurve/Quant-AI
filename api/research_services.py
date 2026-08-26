@@ -51,6 +51,20 @@ def _optional_float(value: Any) -> float | None:
     return converted if converted == converted else None
 
 
+def dividend_yield_fraction(value: Any) -> float | None:
+    """Normalize yfinance's current percentage-point dividend yield to a fraction.
+
+    QuantAI's typed market and financial contracts represent percentage metrics as
+    decimal fractions (for example, 0.0035 for 0.35%). Current yfinance quote
+    metadata returns dividendYield in percentage points (for example, 0.35).
+    Convert only this known provider field at ingestion; null and invalid values
+    remain unavailable rather than being synthesized.
+    """
+
+    normalized = _optional_float(value)
+    return normalized / 100 if normalized is not None else None
+
+
 def _optional_int(value: Any) -> int | None:
     converted = _optional_float(value)
     return int(converted) if converted is not None else None
@@ -71,6 +85,10 @@ _COMPANY_NAME_ALIASES = {
     # `TCS`; resolve it by canonical company identity rather than Yahoo rank.
     "tcs": frozenset({"tataconsultancyservices"}),
 }
+# A small documented search expansion is distinct from selecting an arbitrary
+# Yahoo result: plain `RELIANCE` is a required product shorthand for Reliance
+# Industries, whose full verified identity is then still resolved by Yahoo.
+_COMPANY_SEARCH_EXPANSIONS = {"reliance": "Reliance Industries"}
 _PREFERRED_EXCHANGES = ("NMS", "NYQ", "NGM", "NSI", "BSE")
 
 
@@ -87,6 +105,12 @@ def _canonical_company_name(value: str | None) -> str:
     """Compare company labels while ignoring only trailing legal-form suffixes."""
 
     return "".join(_company_name_tokens(value))
+
+
+def company_search_query(query: str) -> str:
+    """Expand only documented company shorthand before provider candidate search."""
+
+    return _COMPANY_SEARCH_EXPANSIONS.get(_canonical_company_name(query), query)
 
 
 def _terminal_ticker(value: str) -> str | None:
@@ -153,8 +177,9 @@ class EntityResolutionService:
         )[0]
 
     async def _resolve_uncached(self, query: str) -> EntityResolution:
+        search_query = company_search_query(query)
         try:
-            candidates = await asyncio.wait_for(asyncio.to_thread(self._search_candidates, query), timeout=EXTERNAL_TIMEOUT_SECONDS)
+            candidates = await asyncio.wait_for(asyncio.to_thread(self._search_candidates, search_query), timeout=EXTERNAL_TIMEOUT_SECONDS)
         except TimeoutError as error:
             raise ResearchError(ErrorCategory.TIMEOUT, detail=f"entity search timed out: {error}", retryable=True) from error
         except Exception as error:
@@ -174,7 +199,7 @@ class EntityResolutionService:
                 )
             raise ResearchError(ErrorCategory.ENTITY_NOT_FOUND, detail=f"no candidates for {query}")
 
-        selected = self._select_candidate(query, candidates)
+        selected = self._select_candidate(search_query, candidates)
         if selected is None:
             raise ResearchError(ErrorCategory.AMBIGUOUS_ENTITY, detail=f"ambiguous query {query}")
 

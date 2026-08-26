@@ -1,6 +1,6 @@
 /**
- * Final UI Polish visual contract: graphite night mode and mineral paper light
- * mode support a denser search-first research document. Existing sourced data,
+ * Company Workspace visual contract: graphite night mode and mineral paper light
+ * mode support a progressive evidence-first company dossier. Existing sourced data,
  * rules, and typography create hierarchy; color communicates state, never decoration.
  */
 @import "tailwindcss";
@@ -186,6 +186,13 @@
   .research-record-row:hover { background: color-mix(in oklab, var(--surface-subtle) 56%, transparent); }
   .research-news-row { padding-block: 1.1rem; }
   .research-news-summary { text-wrap: pretty; }
+  .company-research-rail { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; border-block: 1px solid var(--rule); background: color-mix(in oklab, var(--surface) 92%, transparent); padding: 0.55rem 0; }
+  .company-research-rail__link { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid transparent; color: var(--ink-soft); font-size: 0.68rem; font-weight: 720; letter-spacing: 0.08em; padding: 0.38rem 0.5rem; text-transform: uppercase; transition: color 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .company-research-rail__link:hover { border-color: color-mix(in oklab, var(--research-indigo) 45%, var(--rule)); background: var(--research-indigo-soft); color: var(--research-indigo); }
+  .company-research-rail__status { margin-left: auto; color: var(--ink-faint); font-family: "DM Mono", ui-monospace, monospace; font-size: 0.65rem; letter-spacing: 0.04em; }
+  .company-period-tab { border: 1px solid transparent; color: var(--ink-faint); font-family: "DM Mono", ui-monospace, monospace; font-size: 0.68rem; font-weight: 700; padding: 0.36rem 0.48rem; transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1), border-color 150ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .company-period-tab:hover { color: var(--research-indigo); }
+  .company-period-tab.is-active { border-color: color-mix(in oklab, var(--research-indigo) 48%, var(--rule)); background: var(--research-indigo-soft); color: var(--research-indigo); }
   .research-analysis-panel { background: linear-gradient(135deg, color-mix(in oklab, var(--research-indigo-soft) 23%, var(--surface)), var(--surface) 42%); }
   .comparison-report { position: relative; }
   .comparison-report::before { content: ""; position: absolute; top: 0; left: 0; width: 4.5rem; height: 2px; background: var(--research-indigo); }
@@ -229,7 +236,7 @@
   .dark .research-section [class*="text-[#"], .dark .research-disclosure [class*="text-[#"] { color: var(--ink-soft) !important; }
   @media (min-width: 640px) { .research-metric:nth-child(2n) { border-right: 1px solid var(--rule); } .research-metric:nth-child(3n) { border-right: 0; } }
   @media (min-width: 1024px) { .research-identity { grid-template-columns: minmax(0, 1fr) auto; align-items: end; } .research-metric { border-bottom: 0; } .research-metric:nth-child(3n) { border-right: 1px solid var(--rule); } .research-metric:last-child { border-right: 0; } }
-  @media (max-width: 639px) { .research-masthead { padding-top: 1rem; } .research-section-heading { padding: 1rem 1rem 0.85rem 1.2rem; } .research-section-heading::before { top: 1rem; } .research-metric { min-height: 5.9rem; } .research-record-row:hover { background: transparent; } .research-activity-rail { border-left: 0; border-top: 1px solid var(--rule); padding: 1.25rem 0 0; } .research-activity-rail::before { top: -1px; left: 0; width: 2.25rem; height: 1px; } }
+  @media (max-width: 639px) { .research-masthead { padding-top: 1rem; } .research-section-heading { padding: 1rem 1rem 0.85rem 1.2rem; } .research-section-heading::before { top: 1rem; } .research-metric { min-height: 5.9rem; } .research-record-row:hover { background: transparent; } .research-activity-rail { border-left: 0; border-top: 1px solid var(--rule); padding: 1.25rem 0 0; } .research-activity-rail::before { top: -1px; left: 0; width: 2.25rem; height: 1px; } .company-research-rail { gap: 0.15rem; padding: 0.45rem 0; } .company-research-rail__link { font-size: 0.62rem; padding: 0.36rem 0.35rem; } .company-research-rail__status { display: none; } .company-period-tab { padding-inline: 0.4rem; } }
   @media (min-width: 640px) { .container { padding-inline: 1.5rem; } }
   @media (min-width: 1024px) { .container { max-width: 1536px; padding-inline: 2rem; } }
 }

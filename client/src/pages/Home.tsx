@@ -5,9 +5,9 @@
  * Recent News renders the provider-supplied summary only when the typed response includes it.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { AlertCircle, ChevronDown, ChevronRight, CircleHelp, FileSearch, LoaderCircle, Network, RefreshCw, Search, Settings2, Sparkles, WifiOff, X } from "lucide-react";
+import { AlertCircle, BarChart3, BookOpenText, Building2, ChevronDown, ChevronRight, FileSearch, Landmark, LoaderCircle, Network, Newspaper, RefreshCw, Search, Settings2, Sparkles, WifiOff, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel, type ChatMessage } from "@/components/ChatPanel";
@@ -16,10 +16,11 @@ import { MarketChart } from "@/components/MarketChart";
 import { MetricCard } from "@/components/MetricCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { fetchAgentInfo, getAgentosUrl, runFinanceAgent, saveAgentosUrl } from "@/lib/agentos";
-import { emptyMarketBrief, marketBriefFromResearch, type MarketBrief } from "@/lib/market";
+import { emptyMarketBrief, marketBriefFromResearch, type HistoryPeriod, type MarketBrief } from "@/lib/market";
 import { researchErrorKind, runCompanyComparison, runTypedResearch, type TypedResearchResponse } from "@/lib/research";
 
 const starterTickers = ["AAPL", "MSFT", "NVDA", "TSLA"];
+const historyPeriodLabels: Record<HistoryPeriod, string> = { "1D": "1D", "1W": "1W", "1M": "1M", "3M": "3M", "6M": "6M", "1Y": "1Y", "5Y": "5Y" };
 type Connection = "checking" | "ready" | "offline";
 type ResearchActivity = { id: string; type: string; query: string; status: string; confidence?: string };
 
@@ -50,6 +51,45 @@ function availabilityCopy(connection: Connection, researchInFlight: boolean, bri
   return "Sourced research record available.";
 }
 
+function periodSeries(brief: MarketBrief, period: HistoryPeriod) {
+  if (period === "1D") return brief.priceHistory.intraday;
+  const daily = brief.priceHistory.daily;
+  if (!daily.length) return [];
+  const latest = new Date(daily[daily.length - 1].label).getTime();
+  const days: Record<Exclude<HistoryPeriod, "1D" | "5Y">, number> = { "1W": 7, "1M": 31, "3M": 92, "6M": 184, "1Y": 366 };
+  if (period === "5Y") return daily;
+  const cutoff = latest - days[period] * 24 * 60 * 60 * 1000;
+  return daily.filter((point) => new Date(point.label).getTime() >= cutoff);
+}
+
+function performanceSummary(series: Array<{ value: number }>) {
+  if (series.length < 2) return null;
+  const first = series[0].value;
+  const last = series[series.length - 1].value;
+  if (!Number.isFinite(first) || !Number.isFinite(last) || first === 0) return null;
+  return { change: ((last - first) / first) * 100, high: Math.max(...series.map((point) => point.value)), low: Math.min(...series.map((point) => point.value)) };
+}
+
+function workspaceResearchRecord(marketResearch: TypedResearchResponse, deepResearch: TypedResearchResponse | null): TypedResearchResponse {
+  if (!deepResearch) return marketResearch;
+  return {
+    ...marketResearch,
+    company: marketResearch.company || deepResearch.company,
+    news: marketResearch.news.length ? marketResearch.news : deepResearch.news,
+    events: marketResearch.events.length ? marketResearch.events : deepResearch.events,
+    analysis: marketResearch.analysis || deepResearch.analysis,
+    sources: [...marketResearch.sources, ...deepResearch.sources],
+    warnings: [...marketResearch.warnings, ...deepResearch.warnings],
+    company_deep_analysis: deepResearch.company_deep_analysis,
+    status: {
+      ...marketResearch.status,
+      financials: deepResearch.status.financials,
+      governance: deepResearch.status.governance,
+      competitors: deepResearch.status.competitors,
+    },
+  };
+}
+
 export default function Home() {
   const [ticker, setTicker] = useState("AAPL");
   const [query, setQuery] = useState("AAPL");
@@ -60,6 +100,7 @@ export default function Home() {
   const [connectionNote, setConnectionNote] = useState("Checking Research Desk…");
   const [isResearching, setIsResearching] = useState(false);
   const [activeResearchMode, setActiveResearchMode] = useState<"market_intelligence" | "company_deep_analysis">("market_intelligence");
+  const [activeHistoryPeriod, setActiveHistoryPeriod] = useState<HistoryPeriod>("1M");
   const [companyA, setCompanyA] = useState("AAPL");
   const [companyB, setCompanyB] = useState("MSFT");
   const [comparison, setComparison] = useState<NonNullable<TypedResearchResponse["company_comparison"]> | null>(null);
@@ -69,6 +110,9 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [endpointDraft, setEndpointDraft] = useState(getAgentosUrl());
   const [researchActivity, setResearchActivity] = useState<ResearchActivity[]>([]);
+  const researchSequence = useRef(0);
+  const activeResearchController = useRef<AbortController | null>(null);
+  const activeResearchKey = useRef<string | null>(null);
 
   async function verifyConnection(apiUrl = getAgentosUrl()) {
     setConnection("checking");
@@ -84,6 +128,7 @@ export default function Home() {
   }
 
   useEffect(() => { void verifyConnection(); }, []);
+  useEffect(() => () => activeResearchController.current?.abort(), []);
 
   function recordResearch(type: string, queryLabel: string, status: string, confidence?: string) {
     setResearchActivity((current) => [{ id: nanoid(), type, query: queryLabel, status, confidence }, ...current].slice(0, 5));
@@ -91,7 +136,14 @@ export default function Home() {
 
   async function requestResearch(symbol = query, mode: "market_intelligence" | "company_deep_analysis" = activeResearchMode) {
     const normalized = symbol.trim();
-    if (!normalized || isResearching) return;
+    const requestKey = `${mode}:${normalized.toLocaleUpperCase()}`;
+    if (!normalized || isComparing || (activeResearchController.current && activeResearchKey.current === requestKey)) return;
+    activeResearchController.current?.abort();
+    const controller = new AbortController();
+    activeResearchController.current = controller;
+    activeResearchKey.current = requestKey;
+    const requestId = researchSequence.current + 1;
+    researchSequence.current = requestId;
     setQuery(normalized);
     setActiveResearchMode(mode);
     setComparison(null);
@@ -102,9 +154,16 @@ export default function Home() {
     setIsResearching(true);
     setError(null);
     try {
-      const research = await runTypedResearch(normalized, true, getAgentosUrl(), mode);
+      const [marketResult, deepResult] = await Promise.allSettled([
+        runTypedResearch(normalized, true, getAgentosUrl(), "market_intelligence", controller.signal),
+        runTypedResearch(normalized, false, getAgentosUrl(), "company_deep_analysis", controller.signal),
+      ]);
+      if (marketResult.status === "rejected") throw marketResult.reason;
+      const research = workspaceResearchRecord(marketResult.value, deepResult.status === "fulfilled" ? deepResult.value : null);
       const typedBrief = marketBriefFromResearch(research);
+      if (controller.signal.aborted || requestId !== researchSequence.current) return;
       setBrief(typedBrief);
+      setActiveHistoryPeriod(typedBrief.priceHistory.defaultPeriod);
       if (typedBrief.ticker !== "—") setTicker(typedBrief.ticker.toUpperCase());
       setMessages((current) => [
         ...current,
@@ -114,11 +173,18 @@ export default function Home() {
       recordResearch(mode === "company_deep_analysis" ? "Deep analysis" : "Market intelligence", typedBrief.ticker === "—" ? normalized : typedBrief.ticker, research.status.overall);
       setConnection("ready");
     } catch (researchError) {
+      if (controller.signal.aborted || (researchError instanceof DOMException && researchError.name === "AbortError") || requestId !== researchSequence.current) return;
       const message = researchError instanceof Error ? researchError.message : "Could not generate the research record.";
       setError(message);
       setConnection(researchErrorKind(message) === "other" ? "offline" : "ready");
     } finally {
-      setIsResearching(false);
+      if (requestId === researchSequence.current) {
+        setIsResearching(false);
+        if (activeResearchController.current === controller) {
+          activeResearchController.current = null;
+          activeResearchKey.current = null;
+        }
+      }
     }
   }
 
@@ -136,6 +202,7 @@ export default function Home() {
       setComparison(report);
       const typedBrief = marketBriefFromResearch(research);
       setBrief(typedBrief);
+      setActiveHistoryPeriod(typedBrief.priceHistory.defaultPeriod);
       setTicker(report.company_a.ticker);
       setQuery(report.company_a.ticker);
       setMessages((current) => [
@@ -187,13 +254,24 @@ export default function Home() {
   const isOffline = connection !== "ready";
   const hasResearch = brief.ticker !== "—";
   const hasWarnings = brief.warnings.length > 0 || brief.freshness.length > 0 || brief.sources.length > 0;
+  const selectedSeries = useMemo(() => periodSeries(brief, activeHistoryPeriod), [brief, activeHistoryPeriod]);
+  const selectedPerformance = useMemo(() => performanceSummary(selectedSeries), [selectedSeries]);
+  const availableFinancials = useMemo(() => (brief.deepAnalysis?.financials || []).filter((metric) => metric.value !== "—"), [brief.deepAnalysis]);
+  const navigationItems = [
+    { id: "snapshot", label: "Snapshot", icon: Landmark },
+    { id: "performance", label: "Performance", icon: BarChart3 },
+    { id: "fundamentals", label: "Fundamentals", icon: Building2 },
+    { id: "news", label: "News", icon: Newspaper },
+    { id: "analysis", label: "Research", icon: BookOpenText },
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="command-bar sticky top-0 z-40 border-b border-[var(--rule)] backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <BrandMark />
-          <div className="hidden items-center gap-4 text-xs text-[var(--ink-soft)] sm:flex"><span>Evidence-first market research</span><span className="h-3 w-px bg-[var(--rule)]" /><span className={connection === "ready" ? "text-[var(--provenance)]" : "text-[var(--negative)]"}>{connection === "ready" ? "Research Desk connected" : connection === "checking" ? "Checking Research Desk" : "Research Desk unavailable"}</span></div>
+          <nav className="hidden items-center gap-5 text-[11px] font-semibold tracking-[0.06em] text-[var(--ink-soft)] lg:flex" aria-label="Product navigation"><a href="#snapshot" className="hover:text-[var(--research-indigo)]">Research</a><a href="#performance" className="hover:text-[var(--research-indigo)]">Market data</a><a href="#research-context" className="hover:text-[var(--research-indigo)]">Insights</a><a href="#news" className="hover:text-[var(--research-indigo)]">News</a></nav>
+          <div className="hidden items-center gap-3 text-xs text-[var(--ink-soft)] xl:flex"><span className="h-3 w-px bg-[var(--rule)]" /><span className={connection === "ready" ? "text-[var(--provenance)]" : "text-[var(--negative)]"}>{connection === "ready" ? "Research Desk connected" : connection === "checking" ? "Checking Research Desk" : "Research Desk unavailable"}</span></div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <button type="button" onClick={() => void verifyConnection()} className="research-icon-button" title="Check research endpoint" aria-label="Check research endpoint">{connection === "checking" ? <LoaderCircle className="size-4 animate-spin" /> : connection === "ready" ? <Network className="size-4 text-[var(--provenance)]" /> : <WifiOff className="size-4 text-[var(--negative)]" />}</button>
@@ -202,26 +280,31 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="research-shell mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className="research-shell mx-auto max-w-[90rem] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
         {error ? <div className="mb-5 flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_7%,var(--surface))] px-4 py-3 text-sm" role="alert"><AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--negative)]" /><div className="min-w-0 flex-1"><strong className="font-semibold text-[var(--ink)]">Research request needs attention.</strong><p className="mt-1 text-[var(--ink-soft)]">{recoveryMessage(error)}</p></div><button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss message"><X className="size-4" /></button></div> : null}
 
         <section className="research-masthead" id="market">
           <div className="research-kicker"><span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Live research</div>
           <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
-              <p className="max-w-2xl font-serif text-4xl leading-[1.02] tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">Search a company, then follow the evidence.</p>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--ink-soft)]">Market facts, reported news, event records, and optional interpretation stay clearly separated.</p>
+              <p className="max-w-3xl font-serif text-4xl leading-[1.02] tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">Company research, held to the evidence.</p>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Search a listed company for market context, price history, reported fundamentals, sourced news, and clearly separated optional interpretation.</p>
             </div>
             <p className="research-status max-w-sm">{availabilityCopy(connection, isResearching, brief)}</p>
           </div>
           <form onSubmit={(event) => { event.preventDefault(); void requestResearch(); }} className="mt-7 flex flex-col gap-2 sm:flex-row">
             <label className="sr-only" htmlFor="company-search">Search a company or ticker</label>
             <div className="research-search-field flex min-w-0 flex-1 items-center gap-3 border border-[var(--rule-strong)] bg-[var(--surface)] px-4 py-3.5 transition-colors focus-within:border-[var(--research-indigo)]"><Search className="size-4 shrink-0 text-[var(--research-indigo)]" /><input id="company-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a company or ticker" className="min-w-0 flex-1 bg-transparent text-base font-medium text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-faint)]" /><kbd className="hidden border border-[var(--rule)] bg-[var(--surface-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">↵</kbd></div>
-            <button type="submit" disabled={isResearching || !query.trim()} className="research-primary-button">{isResearching && !isComparing ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}{isResearching && !isComparing ? "Researching" : "Research"}</button>
-            <button type="button" onClick={() => void requestResearch(query, "company_deep_analysis")} disabled={isResearching || !query.trim()} className="research-secondary-button"><FileSearch className="size-4" /> Deep analysis</button>
+            <button type="submit" disabled={isComparing || !query.trim()} className="research-primary-button">{isResearching && !isComparing ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}{isResearching && !isComparing ? "Researching" : "Research"}</button>
+            <button type="button" onClick={() => void requestResearch(query, "company_deep_analysis")} disabled={isComparing || !query.trim()} className="research-secondary-button"><FileSearch className="size-4" /> Deep analysis</button>
           </form>
-          <div className="research-quick-search mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--ink-soft)]"><span className="ledger-label">Quick search</span>{starterTickers.map((symbol) => <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} disabled={isResearching} className="font-mono font-semibold transition-colors hover:text-[var(--research-indigo)] disabled:opacity-45">{symbol}</button>)}</div>
+          <div className="research-quick-search mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--ink-soft)]"><span className="ledger-label">Quick search</span>{starterTickers.map((symbol) => <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} disabled={isComparing} className="font-mono font-semibold transition-colors hover:text-[var(--research-indigo)] disabled:opacity-45">{symbol}</button>)}</div>
         </section>
+
+        <nav className="company-research-rail mt-5" aria-label="Company research areas">
+          {navigationItems.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} className="company-research-rail__link"><Icon className="size-3.5" /><span>{label}</span></a>)}
+          <span className="company-research-rail__status">{hasResearch ? `${ticker} · ${brief.quoteLabel.toLowerCase()}` : "Awaiting verified company"}</span>
+        </nav>
 
         <section className="research-identity mt-5" aria-live="polite">
           <div className="min-w-0"><p className="ledger-label">{hasResearch ? "Company record" : "Research canvas"}</p><div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="font-serif text-4xl tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">{ticker}</h1>{brief.companyName !== "—" ? <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{brief.companyName}</p> : null}</div><p className="mt-2 text-sm text-[var(--ink-soft)]">{brief.sector !== "—" ? [brief.sector, brief.industry, brief.exchange].filter((item) => item && item !== "—").join(" · ") : "Awaiting a verified company record."}</p></div>
@@ -234,12 +317,18 @@ export default function Home() {
           <p className="research-section-foot">Values are shown only when returned by the current market record.</p>
         </section>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
-          <section className="research-section research-section--history overflow-hidden" aria-labelledby="history-heading"><div className="research-section-heading"><div><p className="ledger-label">Price history</p><h2 id="history-heading">Price movement</h2></div><span className="research-state">Returned series only</span></div><MarketChart data={brief.chart} /></section>
+        <section className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.55fr)]" id="performance">
+          <section className="research-section research-section--history overflow-hidden" aria-labelledby="history-heading"><div className="research-section-heading"><div><p className="ledger-label">Price and performance</p><h2 id="history-heading">Returned price movement</h2></div><span className="research-state">{selectedSeries.length ? `${selectedSeries.length} returned closes` : "Series unavailable"}</span></div><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] px-4 py-3 sm:px-5"><div className="flex flex-wrap gap-1" role="tablist" aria-label="Returned history periods">{brief.priceHistory.availablePeriods.map((period) => <button key={period} type="button" onClick={() => setActiveHistoryPeriod(period)} className={`company-period-tab ${activeHistoryPeriod === period ? "is-active" : ""}`} role="tab" aria-selected={activeHistoryPeriod === period}>{historyPeriodLabels[period]}</button>)}</div>{selectedPerformance ? <div className="flex items-center gap-4 text-[11px] text-[var(--ink-soft)]"><span>Range <strong className="font-mono text-[var(--ink)]">{selectedPerformance.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}–{selectedPerformance.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></span><span className={selectedPerformance.change >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"}>{selectedPerformance.change >= 0 ? "+" : ""}{selectedPerformance.change.toFixed(2)}%</span></div> : null}</div><MarketChart data={selectedSeries} /></section>
           <section className="research-section research-section--signal overflow-hidden" id="signal" aria-labelledby="signal-heading"><div className="research-section-heading"><div><p className="ledger-label">Key signals</p><h2 id="signal-heading">Market signal</h2></div>{brief.signal ? <span className={`research-state ${brief.signal.label === "BULLISH" ? "text-[var(--positive)]" : brief.signal.label === "BEARISH" ? "text-[var(--negative)]" : ""}`}>{brief.signal.label}</span> : null}</div>{brief.signal ? <div className="p-5"><div className="grid grid-cols-2 gap-5 border-b border-[var(--rule)] pb-5"><div><p className="ledger-label">Score</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.score}</p></div><div><p className="ledger-label">Confidence</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.confidence}</p></div></div><p className="mt-5 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.signal.explanation}</p><ul className="mt-4 space-y-2 text-xs leading-relaxed text-[var(--ink-soft)]">{brief.signal.factors.map((factor) => <li key={factor} className="flex gap-2"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--provenance)]" />{factor}</li>)}</ul><details className="research-details mt-5"><summary>Signal method</summary><p>{brief.signal.methodology}</p></details></div> : <div className="p-5"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">Signal unavailable until sufficient deterministic history is sourced.</p></div>}</section>
         </section>
 
         <div className="mt-8" id="analysis"><AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching && !isComparing} unavailableNotice={brief.aiInterpretationNotice} /></div>
+
+        <section className="research-section mt-6 overflow-hidden" id="fundamentals" aria-labelledby="fundamentals-heading">
+          <div className="research-section-heading"><div><p className="ledger-label">Fundamentals and company context</p><h2 id="fundamentals-heading">Reported financial health</h2></div>{brief.deepAnalysis?.profile.fiscalPeriodEnd ? <span className="research-state">Fiscal period · {brief.deepAnalysis.profile.fiscalPeriodEnd}</span> : <span className="research-state">Returned fields only</span>}</div>
+          {brief.deepAnalysis ? <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]"><div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4">{availableFinancials.length ? availableFinancials.map((metric) => <MetricCard key={metric.label} metric={metric} />) : <div className="col-span-full px-5 py-7 text-sm leading-relaxed text-[var(--ink-soft)]">No verified financial-health values were returned for this company.</div>}</div><aside className="border-t border-[var(--rule)] p-5 lg:border-l lg:border-t-0"><p className="ledger-label">Company record</p>{brief.deepAnalysis.profile.description ? <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.deepAnalysis.profile.description}</p> : <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">No sourced company description was returned.</p>}<dl className="mt-5 grid gap-3 text-xs">{brief.deepAnalysis.overview.slice(3, 8).map((item) => <div key={item.label} className="flex items-start justify-between gap-4 border-b border-[var(--rule)] pb-2"><dt className="ledger-label">{item.label}</dt><dd className="text-right text-[var(--ink)]">{item.value}</dd></div>)}</dl>{brief.deepAnalysis.profile.website ? <a href={brief.deepAnalysis.profile.website} target="_blank" rel="noreferrer" className="research-source-link mt-4">Company website <ChevronRight className="size-3" /></a> : null}</aside></div> : <div className="flex flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between"><p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Reported fundamentals, governance, and company profile fields are available through the existing deep-analysis record when the source supplies them.</p><button type="button" onClick={() => void requestResearch(ticker, "company_deep_analysis")} disabled={!hasResearch || isResearching} className="research-secondary-button shrink-0"><FileSearch className="size-4" /> Load fundamentals</button></div>}
+          <p className="research-section-foot">Peer discovery, ownership, and financial time-series are not returned by the current contract. Use the explicit comparison tool below for verified A/B research.</p>
+        </section>
 
         {brief.deepAnalysis ? <details className="research-disclosure mt-8" open={activeResearchMode === "company_deep_analysis"}><summary><span><span className="ledger-label">Company report</span><strong>Deep analysis</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-2"><div><p className="ledger-label">Company profile</p><dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.overview.slice(0, 8).map((item) => <div key={item.label}><dt className="ledger-label">{item.label}</dt><dd className="mt-1 text-sm text-[var(--ink)]">{item.value}</dd></div>)}</dl></div><div><p className="ledger-label">Financial health</p><div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.financials.slice(0, 6).map((metric) => <div key={metric.label}><p className="ledger-label">{metric.label}</p><p className="mt-1 font-mono text-sm text-[var(--ink)]">{metric.value}</p></div>)}</div></div></div><div className="mt-7 grid gap-7 border-t border-[var(--rule)] pt-6 lg:grid-cols-2"><div><p className="ledger-label">Governance</p><p className="mt-2 text-sm font-semibold text-[var(--ink)]">{brief.deepAnalysis.governance.ceo}</p>{brief.deepAnalysis.governance.leadership.length ? <ul className="mt-3 space-y-1 text-xs text-[var(--ink-soft)]">{brief.deepAnalysis.governance.leadership.map((person) => <li key={person}>{person}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--ink-soft)]">No verified leadership record was returned.</p>}</div><div><p className="ledger-label">Competitive evidence</p><p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.deepAnalysis.competitors.note}</p></div></div></div></details> : null}
 

@@ -31,7 +31,7 @@ from .research_schemas import (
     ServiceState,
     SourceRecord,
 )
-from .research_services import EXTERNAL_TIMEOUT_SECONDS, _optional_float, _optional_int, utc_stamp
+from .research_services import EXTERNAL_TIMEOUT_SECONDS, _optional_float, _optional_int, dividend_yield_fraction, utc_stamp
 
 
 MARKET_PULSE_TTL_SECONDS = 60
@@ -138,7 +138,7 @@ class MarketPulseService:
             eps=_optional_float(info.get("trailingEps")),
             fifty_two_week_high=_optional_float(info.get("fiftyTwoWeekHigh")),
             fifty_two_week_low=_optional_float(info.get("fiftyTwoWeekLow")),
-            dividend_yield=_optional_float(info.get("dividendYield")),
+            dividend_yield=dividend_yield_fraction(info.get("dividendYield")),
             market_status=info.get("marketState"),
             as_of=now,
         )

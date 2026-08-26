@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 
 from .ai_providers import ProviderRouter
 from .research_schemas import CompanyCandidate
-from .research_services import EntityResolutionService
+from .research_services import EntityResolutionService, company_search_query, dividend_yield_fraction
 
 
 load_dotenv()
@@ -61,11 +61,12 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
     cleaned_query = (query or "").strip()
     if not cleaned_query:
         return {"error": "Please provide a company name or ticker symbol."}
+    search_query = company_search_query(cleaned_query)
 
     candidates: list[dict[str, Any]] = []
     try:
         search = yf.Search(
-            cleaned_query,
+            search_query,
             max_results=8,
             news_count=0,
             lists_count=0,
@@ -90,7 +91,7 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
     if not candidates:
         try:
             fuzzy_search = yf.Search(
-                cleaned_query,
+                search_query,
                 max_results=8,
                 news_count=0,
                 lists_count=0,
@@ -125,7 +126,7 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
         )
         for symbol, candidate in candidate_by_symbol.items()
     ]
-    selection = EntityResolutionService._select_candidate(cleaned_query, safe_candidates)
+    selection = EntityResolutionService._select_candidate(search_query, safe_candidates)
     selected = candidate_by_symbol[selection[0].symbol] if selection else None
 
     # Yahoo Finance searches can occasionally omit exchange-qualified symbols. Preserve a
@@ -217,7 +218,7 @@ def resolve_company_and_market_data(query: str) -> dict[str, Any]:
         "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
         "volume": info.get("regularMarketVolume") or info.get("volume"),
         "average_volume": info.get("averageVolume"),
-        "dividend_yield": info.get("dividendYield"),
+        "dividend_yield": dividend_yield_fraction(info.get("dividendYield")),
         "price_history": price_history,
         "as_of": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "source": "Yahoo Finance via yfinance",

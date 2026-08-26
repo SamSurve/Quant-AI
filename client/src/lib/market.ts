@@ -8,6 +8,7 @@ import type { TypedResearchResponse } from "@/lib/research";
 /** Evidence Briefing contract: only source-returned records reach visual components. */
 export type Metric = { label: string; value: string; tone?: "neutral" | "positive" | "negative" };
 export type ChartPoint = { label: string; value: number };
+export type HistoryPeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y";
 export type BriefNewsItem = { title: string; summary: string | null; publisher: string | null; publishedAt: string | null; url: string | null; sentiment: string | null };
 export type MarketBrief = {
   companyName: string;
@@ -21,6 +22,7 @@ export type MarketBrief = {
   metrics: Metric[];
   news: BriefNewsItem[];
   chart: ChartPoint[];
+  priceHistory: { intraday: ChartPoint[]; daily: ChartPoint[]; availablePeriods: HistoryPeriod[]; defaultPeriod: HistoryPeriod };
   analysis: string;
   aiInterpretationNotice: string | null;
   signal: { label: string; score: string; confidence: string; factors: string[]; explanation: string; methodology: string } | null;
@@ -29,6 +31,7 @@ export type MarketBrief = {
   warnings: Array<{ category: string; message: string }>;
   freshness: Array<{ label: string; state: string; asOf: string }>;
   deepAnalysis: {
+    profile: { description: string | null; country: string | null; headquarters: string | null; website: string | null; employees: string | null; fiscalPeriodEnd: string | null };
     overview: Array<{ label: string; value: string }>;
     financials: Metric[];
     governance: { ceo: string; leadership: string[]; note: string };
@@ -202,6 +205,7 @@ export function parseMarketBrief(markdown: string): MarketBrief {
     metrics,
     news: extractNews(markdown).map((title) => ({ title, summary: null, publisher: null, publishedAt: null, url: null, sentiment: null })),
     chart: extractChart(tables),
+    priceHistory: { intraday: [], daily: extractChart(tables), availablePeriods: [], defaultPeriod: "1M" },
     analysis: markdown,
     aiInterpretationNotice: null,
     signal: null,
@@ -225,6 +229,7 @@ export const emptyMarketBrief: MarketBrief = {
   metrics: metricKeys.map((metric) => ({ label: metric.label, value: "—", tone: "neutral" })),
   news: [],
   chart: [],
+  priceHistory: { intraday: [], daily: [], availablePeriods: [], defaultPeriod: "1M" },
   analysis: "",
   aiInterpretationNotice: null,
   signal: null,
@@ -251,6 +256,12 @@ function compactMoneyLabel(value: number | null | undefined, currency?: string |
   return value === null || value === undefined || !Number.isFinite(value)
     ? "—"
     : new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD", notation: "compact", maximumFractionDigits: 2 }).format(value);
+}
+
+function historyPoints(points: Array<{ timestamp: string; close?: number | null }>) {
+  return points
+    .filter((point) => point.close !== null && point.close !== undefined)
+    .map((point) => ({ label: point.timestamp, value: point.close as number }));
 }
 
 function typedAnalysisMarkdown(research: TypedResearchResponse) {
@@ -292,6 +303,9 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
   const deep = research.company_deep_analysis;
   const market = intelligence?.market_pulse || deep?.market_context || research.market;
   const currency = research.company?.currency;
+  const priceHistory = intelligence?.price_history;
+  const dailyHistory = historyPoints(priceHistory?.daily || research.history);
+  const intradayHistory = historyPoints(priceHistory?.intraday || []);
   const change = market?.daily_change_percent;
   const deterministicEvidenceAvailable = Boolean(
     market
@@ -322,6 +336,7 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
       { label: "52-week low", value: moneyLabel(market?.fifty_two_week_low, currency) },
       { label: "Volume", value: numberLabel(market?.volume, { notation: "compact", maximumFractionDigits: 2 }) },
       { label: "Dividend yield", value: market?.dividend_yield === null || market?.dividend_yield === undefined ? "—" : `${numberLabel(market.dividend_yield * 100, { maximumFractionDigits: 2 })}%` },
+      { label: "EPS", value: moneyLabel(market?.eps, currency) },
     ].map((metric) => ({ ...metric, tone: "neutral" as const })),
     news: (intelligence?.recent_news || deep?.recent_news || research.news).map((item) => ({
       title: item.title,
@@ -331,9 +346,13 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
       url: item.url || null,
       sentiment: item.sentiment || null,
     })),
-    chart: (intelligence?.price_history?.daily.slice(-60) || research.history)
-      .filter((point) => point.close !== null && point.close !== undefined)
-      .map((point) => ({ label: point.timestamp.slice(0, 10), value: point.close as number })),
+    chart: dailyHistory.slice(-60),
+    priceHistory: {
+      intraday: intradayHistory,
+      daily: dailyHistory,
+      availablePeriods: (priceHistory?.available_periods || []) as HistoryPeriod[],
+      defaultPeriod: (priceHistory?.default_period || "1M") as HistoryPeriod,
+    },
     analysis: typedAnalysisMarkdown(research),
     aiInterpretationNotice,
     signal: intelligence?.market_signal ? {
@@ -354,18 +373,29 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
     warnings: research.warnings.map((warning) => ({ category: warning.category, message: warning.message })),
     freshness: intelligence ? Object.entries(intelligence.freshness).map(([label, value]) => ({ label, state: value.state, asOf: value.as_of || value.retrieved_at || "Unavailable" })) : deep ? Object.entries(deep.freshness).map(([label, value]) => ({ label, state: value.state, asOf: value.as_of || value.retrieved_at || "Unavailable" })) : [],
     deepAnalysis: deep ? {
+      profile: {
+        description: deep.company_overview?.business_description || null,
+        country: deep.company_overview?.country || null,
+        headquarters: deep.company_overview?.headquarters || null,
+        website: deep.company_overview?.website || null,
+        employees: deep.company_overview?.employees == null ? null : numberLabel(deep.company_overview.employees),
+        fiscalPeriodEnd: deep.financial_health?.fiscal_period_end || null,
+      },
       overview: [
         ["Company", deep.company_overview?.company_name], ["Ticker", deep.company_overview?.ticker], ["Exchange", deep.company_overview?.exchange], ["Sector", deep.company_overview?.sector], ["Industry", deep.company_overview?.industry], ["Country", deep.company_overview?.country], ["Headquarters", deep.company_overview?.headquarters], ["Employees", numberLabel(deep.company_overview?.employees)], ["Website", deep.company_overview?.website],
       ].filter((item): item is [string, string] => Boolean(item[1])).map(([label, value]) => ({ label, value })),
       financials: [
         { label: "Revenue", value: compactMoneyLabel(deep.financial_health?.revenue, deep.financial_health?.currency) },
         { label: "Net income", value: compactMoneyLabel(deep.financial_health?.net_income, deep.financial_health?.currency) },
+        { label: "EPS", value: moneyLabel(deep.financial_health?.eps, deep.financial_health?.currency) },
+        { label: "Profit margin", value: deep.financial_health?.profit_margin == null ? "—" : `${numberLabel(deep.financial_health.profit_margin * 100, { maximumFractionDigits: 2 })}%` },
         { label: "Free cash flow", value: compactMoneyLabel(deep.financial_health?.free_cash_flow, deep.financial_health?.currency) },
         { label: "Total cash", value: compactMoneyLabel(deep.financial_health?.total_cash, deep.financial_health?.currency) },
         { label: "Total debt", value: compactMoneyLabel(deep.financial_health?.total_debt, deep.financial_health?.currency) },
         { label: "Operating margin", value: deep.financial_health?.operating_margin == null ? "—" : `${numberLabel(deep.financial_health.operating_margin * 100, { maximumFractionDigits: 2 })}%` },
         { label: "P / Sales", value: numberLabel(deep.financial_health?.price_to_sales, { maximumFractionDigits: 2 }) },
         { label: "ROE", value: deep.financial_health?.return_on_equity == null ? "—" : `${numberLabel(deep.financial_health.return_on_equity * 100, { maximumFractionDigits: 2 })}%` },
+        { label: "ROA", value: deep.financial_health?.return_on_assets == null ? "—" : `${numberLabel(deep.financial_health.return_on_assets * 100, { maximumFractionDigits: 2 })}%` },
       ],
       governance: {
         ceo: deep.governance?.ceo ? [deep.governance.ceo.name, deep.governance.ceo.title].filter(Boolean).join(" · ") : "Insufficient verified data.",

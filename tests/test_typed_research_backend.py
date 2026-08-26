@@ -257,6 +257,14 @@ async def verify_entity_validation_and_ambiguity() -> None:
             ],
             "RELIANCE.NS",
         ),
+        "Reliance": (
+            [
+                CompanyCandidate(symbol="RS", name="Reliance Steel & Aluminum Co.", exchange="NYQ", quote_type="EQUITY"),
+                CompanyCandidate(symbol="RELIANCE.NS", name="Reliance Industries Limited", exchange="NSI", quote_type="EQUITY"),
+                CompanyCandidate(symbol="RELIANCE.BO", name="Reliance Industries Limited", exchange="BSE", quote_type="EQUITY"),
+            ],
+            "RELIANCE.NS",
+        ),
         "Tata Motors": (
             [
                 CompanyCandidate(symbol="TMCV.NS", name="Tata Motors Limited", exchange="NSI", quote_type="EQUITY"),
@@ -295,11 +303,11 @@ async def verify_entity_validation_and_ambiguity() -> None:
 
     preferred_exchange_is_not_identity = EntityResolutionService()
     preferred_exchange_is_not_identity._search_candidates = lambda _query: [
-        CompanyCandidate(symbol="RS", name="Reliance Steel & Aluminum Co.", exchange="NYQ", quote_type="EQUITY"),
-        CompanyCandidate(symbol="RELIANCE.NS", name="Reliance Industries Limited", exchange="NSI", quote_type="EQUITY"),
+        CompanyCandidate(symbol="ACM1", name="Acme Holdings Inc.", exchange="NYQ", quote_type="EQUITY"),
+        CompanyCandidate(symbol="ACM2", name="Acme Technologies Inc.", exchange="NSI", quote_type="EQUITY"),
     ]
     try:
-        await preferred_exchange_is_not_identity.resolve("Reliance")
+        await preferred_exchange_is_not_identity.resolve("Acme")
     except ResearchError as error:
         assert error.category == ErrorCategory.AMBIGUOUS_ENTITY
     else:

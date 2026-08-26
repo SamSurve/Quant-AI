@@ -175,11 +175,12 @@ async function readJson(response: Response) {
   }
 }
 
-export async function runTypedResearch(query: string, includeAnalysis = true, apiUrl = getAgentosUrl(), mode: "standard" | "market_intelligence" | "company_deep_analysis" = "standard"): Promise<TypedResearchResponse> {
+export async function runTypedResearch(query: string, includeAnalysis = true, apiUrl = getAgentosUrl(), mode: "standard" | "market_intelligence" | "company_deep_analysis" = "standard", signal?: AbortSignal): Promise<TypedResearchResponse> {
   const response = await fetch(`${apiUrl}/research`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query, include_analysis: includeAnalysis, mode }),
+    signal,
   });
   const body = (await readJson(response)) as TypedResearchResponse | TypedResearchError;
   if (!response.ok) {

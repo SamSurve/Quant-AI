@@ -29,7 +29,7 @@ from .research_schemas import (
     ServiceState,
     SourceRecord,
 )
-from .research_services import EXTERNAL_TIMEOUT_SECONDS, _optional_float, _optional_int, utc_stamp
+from .research_services import EXTERNAL_TIMEOUT_SECONDS, _optional_float, _optional_int, dividend_yield_fraction, utc_stamp
 
 
 COMPANY_PROFILE_TTL_SECONDS = 60 * 60
@@ -150,7 +150,7 @@ class FinancialHealthService:
             total_debt=_optional_float(info.get("totalDebt")) or _statement_value(balance, ["Total Debt"]),
             pe_ratio=_optional_float(info.get("trailingPE")),
             price_to_sales=_optional_float(info.get("priceToSalesTrailing12Months")),
-            dividend_yield=_optional_float(info.get("dividendYield")),
+            dividend_yield=dividend_yield_fraction(info.get("dividendYield")),
             return_on_equity=_optional_float(info.get("returnOnEquity")),
             return_on_assets=_optional_float(info.get("returnOnAssets")),
             currency=info.get("currency") or entity.currency,
@@ -210,7 +210,7 @@ def market_snapshot_from_profile(info: dict[str, Any], currency: str | None, as_
         eps=values["eps"],
         fifty_two_week_high=_optional_float(info.get("fiftyTwoWeekHigh")),
         fifty_two_week_low=_optional_float(info.get("fiftyTwoWeekLow")),
-        dividend_yield=_optional_float(info.get("dividendYield")),
+        dividend_yield=dividend_yield_fraction(info.get("dividendYield")),
         market_status=info.get("marketState"),
         as_of=as_of,
     )

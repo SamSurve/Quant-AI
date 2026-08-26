@@ -23,8 +23,10 @@ def candidate(symbol: str, name: str, exchange: str = "NMS") -> dict[str, str]:
 
 class FakeSearch:
     quotes: list[dict[str, str]] = []
+    queries: list[str] = []
 
-    def __init__(self, _query: str, **_kwargs: object) -> None:
+    def __init__(self, query: str, **_kwargs: object) -> None:
+        type(self).queries.append(query)
         self.quotes = list(type(self).quotes)
 
 
@@ -53,6 +55,7 @@ class FakeTicker:
 
 def resolve(query: str, quotes: list[dict[str, str]]) -> dict[str, object]:
     FakeSearch.quotes = quotes
+    FakeSearch.queries = []
     FakeTicker.calls = []
     with patch.object(agent_module.yf, "Search", FakeSearch), patch.object(agent_module.yf, "Ticker", FakeTicker):
         return agent_module.resolve_company_and_market_data(query)
@@ -73,6 +76,12 @@ def verify_clear_company_names() -> None:
         [candidate("RELIANCE.NS", "Reliance Industries Limited", "NSI"), candidate("RELIANCE.BO", "Reliance Industries Limited", "BSE")],
         "RELIANCE.NS",
     )
+    assert_resolution(
+        "Reliance",
+        [candidate("RS", "Reliance Steel & Aluminum Co.", "NYQ"), candidate("RELIANCE.NS", "Reliance Industries Limited", "NSI")],
+        "RELIANCE.NS",
+    )
+    assert FakeSearch.queries[0] == "Reliance Industries", FakeSearch.queries
     assert_resolution(
         "Tata Motors",
         [candidate("TMCV.NS", "Tata Motors Limited", "NSI"), candidate("TMCV.BO", "Tata Motors Limited", "BSE")],

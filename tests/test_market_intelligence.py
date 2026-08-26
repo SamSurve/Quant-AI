@@ -7,6 +7,7 @@ never spends provider quota or reaches public market-data endpoints.
 from __future__ import annotations
 
 import asyncio
+import math
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 from api.market_intelligence_services import (
     EventRadarResult,
     HistoryResult,
+    MarketPulseService,
     MarketPulseResult,
     calculate_market_signal,
 )
@@ -111,6 +113,20 @@ class FakePulseService:
             retrieved_at=STAMP,
         )
         return pulse, FreshnessRecord(state=FreshnessState.LIVE, retrieved_at=STAMP)
+
+
+class PercentagePointYieldPulseService(MarketPulseService):
+    @staticmethod
+    async def _info(_symbol: str):
+        return {
+            "longName": "Apple Inc.",
+            "exchange": "NMS",
+            "currency": "USD",
+            "regularMarketPrice": 200.0,
+            # Current yfinance quote metadata reports this source field as 0.35
+            # percentage points, while QuantAI's typed percentage fields are fractions.
+            "dividendYield": 0.35,
+        }
 
 
 class FakeHistoryService:
@@ -269,10 +285,16 @@ async def verify_history_close_fallback() -> None:
     assert response.market_intelligence.freshness.market.as_of == daily_history()[-1].timestamp
 
 
+async def verify_dividend_yield_unit_normalization() -> None:
+    result = await PercentagePointYieldPulseService()._fetch_uncached(company())
+    assert result.market and result.market.dividend_yield is not None and math.isclose(result.market.dividend_yield, 0.0035)
+
+
 verify_signal_methodology()
 asyncio.run(verify_complete_market_intelligence())
 asyncio.run(verify_partial_failures())
 asyncio.run(verify_history_close_fallback())
+asyncio.run(verify_dividend_yield_unit_normalization())
 
 
 class RouteFakeOrchestrator:
