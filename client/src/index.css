@@ -2,6 +2,8 @@
  * Company Workspace visual contract: graphite night mode and mineral paper light
  * mode support a progressive evidence-first company dossier. Existing sourced data,
  * rules, and typography create hierarchy; color communicates state, never decoration.
+ * The Research Brief reserves its strongest editorial treatment for the executive
+ * heading and uses compact report subheads for interpretation sections.
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -216,6 +218,15 @@
   .agent-markdown td { border-bottom: 1px solid var(--rule); padding: 0.5rem; vertical-align: top; }
   .agent-markdown code { background: var(--surface-subtle); padding: 0.1rem 0.25rem; font-family: "DM Mono", ui-monospace, monospace; font-size: 0.82em; }
   .agent-markdown strong { color: var(--ink); font-weight: 650; }
+  .research-analysis-panel .agent-markdown { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.68; }
+  .research-analysis-panel .agent-markdown p { margin: 0 0 0.95rem; }
+  .research-analysis-panel .agent-markdown > :is(h1, h2, h3):first-child { color: var(--ink); font-family: "DM Serif Display", ui-serif, serif; font-size: clamp(1.35rem, 2vw, 1.65rem); font-weight: 400; letter-spacing: -0.035em; line-height: 1.12; margin: 0 0 0.7rem; }
+  .research-analysis-panel .agent-markdown > :is(h1, h2, h3):not(:first-child) { color: var(--ink); font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 0.7rem; font-weight: 780; letter-spacing: 0.14em; line-height: 1.25; margin: 1.5rem 0 0.45rem; text-transform: uppercase; }
+  .research-analysis-panel .agent-markdown > :is(h1, h2, h3) + p { margin-bottom: 1rem; }
+  .research-analysis-panel .agent-markdown > :is(h1, h2, h3) + :is(ul, ol) { margin-top: 0.1rem; }
+  .research-analysis-panel .agent-markdown :is(ul, ol) { margin: 0.15rem 0 1.05rem; padding-left: 1.35rem; }
+  .research-analysis-panel .agent-markdown li { padding-left: 0.1rem; }
+  .research-analysis-panel .agent-markdown li + li { margin-top: 0.32rem; }
   .shimmer-line { background: linear-gradient(90deg, var(--surface-subtle) 0%, color-mix(in oklab, var(--surface) 78%, white) 48%, var(--surface-subtle) 100%); background-size: 200% 100%; animation: shimmer 1.45s linear infinite; }
   .theme-toggle { display: inline-flex; align-items: center; gap: 0.125rem; border: 1px solid var(--rule); background: var(--surface-raised); padding: 0.18rem; }
   .theme-toggle button { display: grid; height: 1.8rem; width: 1.8rem; place-items: center; color: var(--ink-faint); transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); }
@@ -244,6 +255,46 @@
   @media (min-width: 640px) { .container { padding-inline: 1.5rem; } }
   @media (min-width: 1024px) { .container { max-width: 1536px; padding-inline: 2rem; } }
 }
+
+/* Evidence Terminal Continuum refinement: shared surface ladder and gutter system. */
+:root {
+  --background: oklch(0.968 0.006 92);
+  --surface: oklch(0.992 0.004 92);
+  --surface-raised: oklch(0.982 0.006 92);
+  --surface-subtle: oklch(0.947 0.01 92);
+}
+.dark {
+  --background: oklch(0.112 0.012 265);
+  --card: oklch(0.158 0.015 265);
+  --popover: oklch(0.174 0.015 265);
+  --secondary: oklch(0.205 0.016 265);
+  --muted: oklch(0.195 0.015 265);
+  --surface: oklch(0.154 0.015 265);
+  --surface-raised: oklch(0.177 0.017 265);
+  --surface-subtle: oklch(0.202 0.018 265);
+}
+body { background-image: linear-gradient(to bottom, color-mix(in oklab, var(--rule) 22%, transparent) 1px, transparent 1px); background-size: 100% 12px; }
+.research-masthead { border: 1px solid var(--rule); background: linear-gradient(115deg, color-mix(in oklab, var(--surface-raised) 97%, var(--surface)), color-mix(in oklab, var(--surface) 92%, var(--background))); box-shadow: 0 12px 28px color-mix(in oklab, var(--ink) 4%, transparent); padding: clamp(1.35rem, 3vw, 2.5rem) clamp(1rem, 2.6vw, 2rem) clamp(1.15rem, 2vw, 1.65rem); }
+.research-masthead::after { right: clamp(1rem, 2.6vw, 2rem); }
+.research-status { max-width: 22rem; }
+.research-control-deck { align-items: stretch; }
+.research-identity { background: linear-gradient(108deg, var(--surface-raised), color-mix(in oklab, var(--surface) 90%, var(--surface-subtle))); box-shadow: 0 10px 24px color-mix(in oklab, var(--ink) 4%, transparent); padding: clamp(1.2rem, 2.4vw, 1.75rem); }
+.research-identity.is-pending { background: linear-gradient(108deg, color-mix(in oklab, var(--research-indigo-soft) 26%, var(--surface-raised)), var(--surface)); }
+.research-section, .research-disclosure { background: linear-gradient(160deg, var(--surface), color-mix(in oklab, var(--surface-raised) 46%, var(--surface))); }
+.research-section { box-shadow: 0 8px 20px color-mix(in oklab, var(--ink) 3%, transparent); }
+.research-section-heading { background: color-mix(in oklab, var(--surface-raised) 82%, var(--surface)); padding: 1.15rem clamp(1rem, 2.2vw, 1.55rem) 1rem clamp(1.2rem, 2.4vw, 1.75rem); }
+.research-section-foot { padding: 0.8rem clamp(1rem, 2.2vw, 1.55rem); }
+.research-metric { background: color-mix(in oklab, var(--surface-raised) 52%, var(--surface)); }
+.research-primary-button { background: linear-gradient(135deg, color-mix(in oklab, var(--research-indigo) 92%, white), var(--research-indigo)); box-shadow: 0 8px 18px color-mix(in oklab, var(--research-indigo) 20%, transparent); padding-inline: 1.2rem; }
+.research-secondary-button { background: color-mix(in oklab, var(--surface-raised) 72%, transparent); }
+.research-search-field { box-shadow: inset 0 1px 0 color-mix(in oklab, var(--surface-raised) 80%, white), 0 4px 12px color-mix(in oklab, var(--ink) 3%, transparent); }
+.research-quick-search button { border: 1px solid transparent; color: var(--ink-soft); padding: 0.25rem 0.4rem; }
+.research-quick-search button:hover { border-color: color-mix(in oklab, var(--research-indigo) 42%, var(--rule)); background: var(--research-indigo-soft); }
+.company-research-rail { gap: 0.35rem; border: 1px solid var(--rule); background: color-mix(in oklab, var(--surface-raised) 88%, var(--surface)); box-shadow: 0 5px 14px color-mix(in oklab, var(--ink) 2%, transparent); padding: 0.45rem clamp(0.55rem, 1.5vw, 0.8rem); }
+.company-research-rail__link { font-size: 0.66rem; padding: 0.42rem 0.56rem; }
+.research-analysis-panel { border-color: color-mix(in oklab, var(--research-indigo) 24%, var(--rule)); background: linear-gradient(135deg, color-mix(in oklab, var(--research-indigo-soft) 30%, var(--surface-raised)), var(--surface) 48%); }
+.command-bar { background: color-mix(in oklab, var(--background) 91%, var(--surface)); box-shadow: 0 1px 0 color-mix(in oklab, var(--surface-raised) 44%, transparent); }
+@media (max-width: 639px) { .research-masthead { padding: 1rem; } .research-masthead::after { right: 1rem; } .research-status { max-width: none; } .company-research-rail { padding: 0.45rem; } }
 
 @keyframes shimmer { to { background-position: -200% 0; } }
 @keyframes trace-in { to { stroke-dashoffset: 0; } }

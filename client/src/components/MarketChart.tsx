@@ -5,13 +5,13 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import { BarChart3 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 
-/** Research Observatory visual contract: market plots are factual, quiet, and theme-native. */
+/** Evidence Terminal Continuum visual contract: market plots are factual, quiet, and share the workspace surface hierarchy. */
 
 export function MarketChart({ data }: { data: ChartPoint[] }) {
   const { resolvedTheme } = useTheme();
   const palette = resolvedTheme === "dark"
-    ? { line: "#91A0FF", fill: "#91A0FF", axis: "#9ba2b5", surface: "#20232e", border: "#4c5160", ink: "#f0f0eb" }
-    : { line: "#5669E8", fill: "#5669E8", axis: "#747986", surface: "#fdfcf9", border: "#d4d0c8", ink: "#252934" };
+    ? { line: "#A4ACFF", fill: "#A4ACFF", axis: "#9EA7B8", surface: "#181C28", border: "#4A5265", ink: "#F0F1E9" }
+    : { line: "#5A67D8", fill: "#5A67D8", axis: "#687080", surface: "#FEFDF9", border: "#CEC9BF", ink: "#202737" };
   if (data.length < 2) {
     return (
       <div className="relative min-h-[220px] overflow-hidden border-y border-[var(--rule)] bg-[var(--surface-raised)] px-5 py-5">
