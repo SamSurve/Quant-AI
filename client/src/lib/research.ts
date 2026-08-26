@@ -189,17 +189,3 @@ export async function runTypedResearch(query: string, includeAnalysis = true, ap
   }
   return body as TypedResearchResponse;
 }
-
-export async function runCompanyComparison(companyA: string, companyB: string, includeAnalysis = true, apiUrl = getAgentosUrl()): Promise<TypedResearchResponse> {
-  const response = await fetch(`${apiUrl}/research`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ mode: "company_comparison", company_a: companyA, company_b: companyB, include_analysis: includeAnalysis }),
-  });
-  const body = (await readJson(response)) as TypedResearchResponse | TypedResearchError;
-  if (!response.ok) {
-    const error = body as TypedResearchError;
-    throw new Error(error.message || "Company comparison is temporarily unavailable. Please try again shortly.");
-  }
-  return body as TypedResearchResponse;
-}
