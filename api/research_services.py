@@ -88,7 +88,13 @@ _COMPANY_NAME_ALIASES = {
 # A small documented search expansion is distinct from selecting an arbitrary
 # Yahoo result: plain `RELIANCE` is a required product shorthand for Reliance
 # Industries, whose full verified identity is then still resolved by Yahoo.
-_COMPANY_SEARCH_EXPANSIONS = {"reliance": "Reliance Industries"}
+_COMPANY_SEARCH_EXPANSIONS = {
+    "reliance": "Reliance Industries",
+    # Tata Motors Passenger Vehicles Limited is the current NSE-listed successor
+    # returned by the provider as TMPV.NS. Expand the legacy natural-name query
+    # before candidate selection; the provider still supplies the verified ticker.
+    "tatamotors": "Tata Motors Passenger Vehicles",
+}
 _PREFERRED_EXCHANGES = ("NMS", "NYQ", "NGM", "NSI", "BSE")
 
 

@@ -84,9 +84,13 @@ def verify_clear_company_names() -> None:
     assert FakeSearch.queries[0] == "Reliance Industries", FakeSearch.queries
     assert_resolution(
         "Tata Motors",
-        [candidate("TMCV.NS", "Tata Motors Limited", "NSI"), candidate("TMCV.BO", "Tata Motors Limited", "BSE")],
-        "TMCV.NS",
+        [
+            candidate("TMPV.NS", "Tata Motors Passenger Vehicles Limited", "NSI"),
+            candidate("TMPV.BO", "Tata Motors Passenger Vehicles Limited", "BSE"),
+        ],
+        "TMPV.NS",
     )
+    assert FakeSearch.queries[0] == "Tata Motors Passenger Vehicles", FakeSearch.queries
 
 
 def verify_terminal_ticker() -> None:

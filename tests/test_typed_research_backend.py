@@ -179,17 +179,31 @@ async def verify_cache_and_inflight_deduplication() -> None:
 
 
 async def verify_entity_validation_and_ambiguity() -> None:
-    direct = EntityResolutionService()
-    direct._search_candidates = lambda _query: [CompanyCandidate(symbol="AAPL", name="Apple Inc.", exchange="NMS", quote_type="EQUITY")]
-    resolved = await direct.resolve("AAPL")
-    assert resolved.company and resolved.company.symbol == "AAPL"
-    assert resolved.company.identifier_confidence == IdentifierConfidence.HIGH
+    for symbol, name in {
+        "AAPL": "Apple Inc.",
+        "RELIANCE.NS": "Reliance Industries Limited",
+        "MSFT": "Microsoft Corporation",
+        "NVDA": "NVIDIA Corporation",
+        "TSLA": "Tesla, Inc.",
+    }.items():
+        direct = EntityResolutionService()
+        direct._search_candidates = lambda _query, symbol=symbol, name=name: [CompanyCandidate(symbol=symbol, name=name, exchange="NMS", quote_type="EQUITY")]
+        resolved = await direct.resolve(symbol)
+        assert resolved.company and resolved.company.symbol == symbol
+        assert resolved.company.identifier_confidence == IdentifierConfidence.HIGH
 
     company_name_cases = {
         "Apple": (
             [
                 CompanyCandidate(symbol="AAPL", name="Apple Inc.", exchange="NMS", quote_type="EQUITY"),
                 CompanyCandidate(symbol="APLE", name="Apple Hospitality REIT, Inc.", exchange="NYQ", quote_type="EQUITY"),
+                CompanyCandidate(symbol="APC.DE", name="Apple Inc.", exchange="GER", quote_type="EQUITY"),
+            ],
+            "AAPL",
+        ),
+        "Apple Inc": (
+            [
+                CompanyCandidate(symbol="AAPL", name="Apple Inc.", exchange="NMS", quote_type="EQUITY"),
                 CompanyCandidate(symbol="APC.DE", name="Apple Inc.", exchange="GER", quote_type="EQUITY"),
             ],
             "AAPL",
@@ -270,7 +284,7 @@ async def verify_entity_validation_and_ambiguity() -> None:
                 CompanyCandidate(symbol="TMCV.NS", name="Tata Motors Limited", exchange="NSI", quote_type="EQUITY"),
                 CompanyCandidate(symbol="TMPV.NS", name="Tata Motors Passenger Vehicles Limited", exchange="NSI", quote_type="EQUITY"),
             ],
-            "TMCV.NS",
+            "TMPV.NS",
         ),
         "TCS": (
             [
@@ -288,6 +302,20 @@ async def verify_entity_validation_and_ambiguity() -> None:
         resolved = await resolver.resolve(query)
         assert resolved.company and resolved.company.symbol == expected_symbol, query
         assert resolved.company.identifier_confidence == IdentifierConfidence.HIGH, query
+
+    tata_search_queries: list[str] = []
+    tata_motors = EntityResolutionService()
+    tata_motors._search_candidates = lambda query: (
+        tata_search_queries.append(query)
+        or [
+            CompanyCandidate(symbol="TMCV.NS", name="Tata Motors Limited", exchange="NSI", quote_type="EQUITY"),
+            CompanyCandidate(symbol="TMPV.NS", name="Tata Motors Passenger Vehicles Limited", exchange="NSI", quote_type="EQUITY"),
+        ]
+    )
+    tata_resolved = await tata_motors.resolve("Tata Motors")
+    assert tata_search_queries == ["Tata Motors Passenger Vehicles"]
+    assert tata_resolved.company and tata_resolved.company.symbol == "TMPV.NS"
+    assert tata_resolved.company.identifier_confidence == IdentifierConfidence.HIGH
 
     genuinely_ambiguous = EntityResolutionService()
     genuinely_ambiguous._search_candidates = lambda _query: [
