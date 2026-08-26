@@ -1,9 +1,9 @@
 /**
- * Company Workspace visual contract: graphite night mode and mineral paper light
- * mode support a progressive evidence-first company dossier. Existing sourced data,
- * rules, and typography create hierarchy; color communicates state, never decoration.
- * The Research Brief reserves its strongest editorial treatment for the executive
- * heading and uses compact report subheads for interpretation sections.
+ * Evidence Terminal Continuum visual contract: graphite night mode and mineral paper
+ * light mode create a readable, evidence-first company dossier. Existing sourced data
+ * and functionality remain untouched; typography, spacing, rules, and responsive
+ * reflow establish the hierarchy. The Research Brief keeps its executive heading
+ * strongest while report subheads, metric values, and source metadata remain legible.
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -304,4 +304,93 @@ body { background-image: linear-gradient(to bottom, color-mix(in oklab, var(--ru
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .startup-reveal { display: none; }
+}
+
+/* Final refinement: one readable terminal rhythm across command deck, evidence modules, and responsive disclosures. */
+:root {
+  --workspace-gutter: clamp(1rem, 2.5vw, 2.25rem);
+  --module-pad: clamp(1.15rem, 2.25vw, 1.75rem);
+  --body-reading: clamp(0.94rem, 0.2vw + 0.89rem, 1.02rem);
+}
+
+.research-shell { max-width: 96rem; padding-inline: var(--workspace-gutter); }
+.research-masthead { padding: clamp(1.5rem, 3.5vw, 2.9rem) var(--module-pad) clamp(1.35rem, 2.6vw, 1.9rem); }
+.research-masthead > .mt-5 { gap: clamp(1.7rem, 3vw, 2.8rem); }
+.research-masthead .font-serif.text-4xl { font-size: clamp(2.1rem, 4.25vw, 3.45rem); line-height: 1.04; }
+.research-masthead .text-sm { font-size: var(--body-reading); line-height: 1.65; }
+.research-status { font-size: 0.88rem; line-height: 1.6; max-width: 25rem; }
+.research-control-deck { gap: 0.65rem; }
+.research-input, .research-search-field input { font-size: 1rem; line-height: 1.5; }
+.research-primary-button, .research-secondary-button { font-size: 0.92rem; min-height: 3.25rem; }
+.company-research-rail { margin-top: 0.85rem; padding: 0.55rem clamp(0.65rem, 1.5vw, 1rem); }
+.company-research-rail__link { font-size: 0.72rem; padding: 0.5rem 0.62rem; }
+.research-identity { gap: clamp(1.35rem, 2.6vw, 2rem); padding: clamp(1.4rem, 2.6vw, 2rem); }
+.research-identity .font-serif.text-4xl { font-size: clamp(2.05rem, 4vw, 3.25rem); }
+.research-identity .text-sm { font-size: 0.92rem; line-height: 1.6; }
+.research-price .text-3xl { font-size: clamp(2rem, 3.5vw, 2.7rem); }
+.research-section { margin-top: 1.5rem; }
+.research-section-heading { padding: 1.3rem var(--module-pad) 1.1rem calc(var(--module-pad) + 0.25rem); }
+.research-section-heading h2 { font-size: clamp(1.45rem, 2.25vw, 1.8rem); line-height: 1.15; }
+.research-section-foot { font-size: 0.78rem; padding: 0.9rem var(--module-pad); }
+.ledger-label { font-size: 0.68rem; letter-spacing: 0.14em; }
+.research-state { font-size: 0.69rem; letter-spacing: 0.1em; }
+.research-metric { min-height: 7.4rem; }
+.research-metric::after { left: 1.25rem; right: 1.25rem; }
+.research-section--history .company-period-tab { font-size: 0.75rem; padding: 0.46rem 0.6rem; }
+.research-section--history .text-\[11px\] { font-size: 0.8rem; }
+.research-section--signal .p-5 { padding: var(--module-pad); }
+.research-section--signal .text-sm { font-size: var(--body-reading); line-height: 1.65; }
+.research-section--signal .text-xs { font-size: 0.82rem; line-height: 1.6; }
+.research-analysis-panel { margin-top: 1.5rem; }
+.research-brief-panel .text-2xl { font-size: clamp(1.6rem, 2.2vw, 2rem); }
+.research-brief-lead { text-wrap: pretty; }
+.research-brief-markdown { font-size: var(--body-reading); line-height: 1.75; }
+.research-brief-markdown > :is(h1, h2, h3):not(:first-child) { font-size: 0.8rem; letter-spacing: 0.11em; margin-top: 1.85rem; margin-bottom: 0.6rem; }
+.research-brief-markdown > :is(h1, h2, h3):first-child { font-size: clamp(1.55rem, 2.5vw, 2rem); margin-bottom: 0.85rem; }
+.research-brief-markdown li + li { margin-top: 0.45rem; }
+.research-section#fundamentals .p-5, .research-section#fundamentals .px-5 { padding-inline: var(--module-pad); }
+.research-section#fundamentals .text-sm { font-size: var(--body-reading); line-height: 1.65; }
+.research-news-row { padding-block: 1.35rem; }
+.research-news-row .text-sm { font-size: var(--body-reading); line-height: 1.55; }
+.research-news-row .text-xs { font-size: 0.8rem; line-height: 1.5; }
+.research-source-link { font-size: 0.78rem; }
+.research-record-row { padding-inline: var(--module-pad); }
+.research-disclosure { margin-top: 1.75rem; }
+.research-disclosure > summary { padding: 1.25rem var(--module-pad); }
+.research-disclosure > summary strong { font-size: clamp(1.3rem, 2vw, 1.55rem); }
+.research-disclosure > div { padding-inline: var(--module-pad) !important; }
+.research-details { font-size: 0.86rem; line-height: 1.65; }
+.research-details summary { font-size: 0.74rem; }
+.comparison-report .text-xs { font-size: 0.78rem; line-height: 1.55; }
+.comparison-report .text-\[10px\] { font-size: 0.7rem; line-height: 1.45; }
+.research-desk-panel { box-shadow: 0 10px 24px color-mix(in oklab, var(--ink) 4%, transparent); }
+.research-desk-panel .agent-markdown { font-size: 0.95rem; line-height: 1.7; }
+
+@media (max-width: 1023px) {
+  .research-shell { padding-inline: clamp(1rem, 3vw, 1.5rem); }
+  .research-section--history, .research-section--signal { min-width: 0; }
+  .research-activity-rail { border-left: 0; border-top: 1px solid var(--rule); padding-left: 0; padding-top: 1.5rem; }
+}
+
+@media (max-width: 639px) {
+  .research-shell { padding-inline: 0.85rem; padding-top: 1rem; }
+  .research-masthead { padding: 1.2rem 1rem 1.1rem; }
+  .research-masthead .font-serif.text-4xl { font-size: clamp(2rem, 10vw, 2.6rem); }
+  .research-masthead .mt-7 { margin-top: 1.35rem; }
+  .research-control-deck { gap: 0.55rem; }
+  .research-control-deck .research-primary-button, .research-control-deck .research-secondary-button { flex: 0 0 auto; min-height: 3.35rem; }
+  .research-identity { padding: 1.15rem; }
+  .research-identity .font-serif.text-4xl { font-size: clamp(2rem, 10vw, 2.55rem); }
+  .research-section-heading { padding: 1.1rem 1rem 0.95rem 1.2rem; }
+  .research-section-heading h2 { font-size: 1.45rem; }
+  .research-metric { min-height: 7.15rem; }
+  .research-analysis-panel { padding: 1.15rem !important; }
+  .research-brief-lead { border-left-width: 2px; padding-left: 1rem; font-size: 1.7rem !important; }
+  .research-brief-markdown { font-size: 0.96rem; line-height: 1.7; }
+  .research-news-row { grid-template-columns: 1.8rem minmax(0, 1fr); gap: 0.75rem; padding: 1.15rem 1rem; }
+  .research-record-row { padding-inline: 1rem; }
+  .research-disclosure > summary { padding: 1.1rem 1rem; }
+  .research-disclosure > div { padding-inline: 1rem !important; }
+  .research-desk-panel { min-height: 540px; }
+  .research-desk-panel > div { padding-inline: 1rem; }
 }
