@@ -6,6 +6,8 @@
  * an automatic network request. No data is displayed unless it originates in
  * the existing typed research or AgentOS flow.
  * Recent News renders the provider-supplied summary only when the typed response includes it.
+ * Financial Health presents five compact returned metrics and a wide company-record
+ * summary without changing the existing research flow or API contract.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -232,7 +234,11 @@ export default function Home() {
   const canvasDetail = hasResearch ? brief.change : isResearching ? "Checking current market record" : "Select Research to source a live record";
   const selectedSeries = useMemo(() => periodSeries(brief, activeHistoryPeriod), [brief, activeHistoryPeriod]);
   const selectedPerformance = useMemo(() => performanceSummary(selectedSeries), [selectedSeries]);
-  const availableFinancials = useMemo(() => (brief.deepAnalysis?.financials || []).filter((metric) => metric.value !== "—"), [brief.deepAnalysis]);
+  const compactFinancials = useMemo(() => {
+    const labels = ["EPS", "Profit margin", "Total cash", "Total debt", "Operating margin"];
+    return labels.map((label) => brief.deepAnalysis?.financials.find((metric) => metric.label === label) || { label, value: "—", tone: "neutral" as const });
+  }, [brief.deepAnalysis]);
+  const companySummaryDetails = useMemo(() => (brief.deepAnalysis?.overview || []).filter((item) => !["Company", "Ticker", "Website"].includes(item.label)), [brief.deepAnalysis]);
   const navigationItems = [
     { id: "snapshot", label: "Snapshot", icon: Landmark },
     { id: "performance", label: "Performance", icon: BarChart3 },
@@ -300,9 +306,9 @@ export default function Home() {
 
         <div className="terminal-brief mt-7" id="analysis"><AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching} unavailableNotice={brief.aiInterpretationNotice} /></div>
 
-        <section className="research-section mt-6 overflow-hidden" id="fundamentals" aria-labelledby="fundamentals-heading">
+        <section className="research-section terminal-fundamentals mt-6 overflow-hidden" id="fundamentals" aria-labelledby="fundamentals-heading">
           <div className="research-section-heading"><div><p className="ledger-label">Fundamentals and company context</p><h2 id="fundamentals-heading">Reported financial health</h2></div>{brief.deepAnalysis?.profile.fiscalPeriodEnd ? <span className="research-state">Fiscal period · {brief.deepAnalysis.profile.fiscalPeriodEnd}</span> : <span className="research-state">Returned fields only</span>}</div>
-          {brief.deepAnalysis ? <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]"><div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4">{availableFinancials.length ? availableFinancials.map((metric) => <MetricCard key={metric.label} metric={metric} />) : <div className="col-span-full px-5 py-7 text-sm leading-relaxed text-[var(--ink-soft)]">No verified financial-health values were returned for this company.</div>}</div><aside className="border-t border-[var(--rule)] p-5 lg:border-l lg:border-t-0"><p className="ledger-label">Company record</p>{brief.deepAnalysis.profile.description ? <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.deepAnalysis.profile.description}</p> : <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">No sourced company description was returned.</p>}<dl className="mt-5 grid gap-3 text-xs">{brief.deepAnalysis.overview.slice(3, 8).map((item) => <div key={item.label} className="flex items-start justify-between gap-4 border-b border-[var(--rule)] pb-2"><dt className="ledger-label">{item.label}</dt><dd className="text-right text-[var(--ink)]">{item.value}</dd></div>)}</dl>{brief.deepAnalysis.profile.website ? <a href={brief.deepAnalysis.profile.website} target="_blank" rel="noreferrer" className="research-source-link mt-4">Company website <ChevronRight className="size-3" /></a> : null}</aside></div> : <div className="flex flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between"><p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Reported fundamentals, governance, and company profile fields are available through the existing deep-analysis record when the source supplies them.</p><button type="button" onClick={() => void requestResearch(ticker, "company_deep_analysis")} disabled={!hasResearch || isResearching} className="research-secondary-button shrink-0"><FileSearch className="size-4" /> Load fundamentals</button></div>}
+          {brief.deepAnalysis ? <div className="financial-health-layout"><div className="financial-health-metrics" aria-label="Reported financial health metrics">{compactFinancials.map((metric) => <MetricCard key={metric.label} metric={metric} variant="compact" />)}</div><section className="company-record-summary" aria-labelledby="company-summary-heading"><div><p className="ledger-label">Company record</p><h3 id="company-summary-heading" className="mt-1 font-serif text-2xl tracking-[-0.035em] text-[var(--ink)]">Company record summary</h3></div><div className="company-record-summary__content">{brief.deepAnalysis.profile.description ? <p className="company-record-summary__description">{brief.deepAnalysis.profile.description}</p> : <p className="company-record-summary__description">No sourced company description was returned.</p>}{companySummaryDetails.length ? <dl className="company-record-summary__metadata">{companySummaryDetails.map((item) => <div key={item.label}><dt className="ledger-label">{item.label}</dt><dd>{item.value}</dd></div>)}</dl> : null}{brief.deepAnalysis.profile.website ? <a href={brief.deepAnalysis.profile.website} target="_blank" rel="noreferrer" className="research-source-link mt-4">Company website <ChevronRight className="size-3" /></a> : null}</div></section></div> : <div className="flex flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between"><p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Reported fundamentals, governance, and company profile fields are available through the existing deep-analysis record when the source supplies them.</p><button type="button" onClick={() => void requestResearch(ticker, "company_deep_analysis")} disabled={!hasResearch || isResearching} className="research-secondary-button shrink-0"><FileSearch className="size-4" /> Load fundamentals</button></div>}
           <p className="research-section-foot">Peer discovery, ownership, and financial time-series are not returned by the current contract. Values remain visible only when supported by the returned research evidence.</p>
         </section>
 

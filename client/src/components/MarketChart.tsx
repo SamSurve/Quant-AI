@@ -1,4 +1,4 @@
-/** Evidence Terminal Continuum reminder: returned-only charts retain their series and calculations while improving available vertical space and label legibility. */
+/** Financial Health refinement contract: returned-only charts retain their series and calculations while formatting returned timestamps only at the visual display boundary. */
 
 import type { ChartPoint } from "@/lib/market";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -6,6 +6,17 @@ import { BarChart3 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /** Evidence Terminal Continuum visual contract: market plots are factual, quiet, and share the workspace surface hierarchy. */
+
+export function formatChartDate(value: string | number) {
+  const raw = String(value);
+  const calendarDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const date = calendarDate
+    ? new Date(Date.UTC(Number(calendarDate[1]), Number(calendarDate[2]) - 1, Number(calendarDate[3])))
+    : new Date(raw);
+  return Number.isNaN(date.getTime())
+    ? raw.slice(0, 10)
+    : new Intl.DateTimeFormat(undefined, { month: "short", day: "2-digit", timeZone: "UTC" }).format(date);
+}
 
 export function MarketChart({ data }: { data: ChartPoint[] }) {
   const { resolvedTheme } = useTheme();
@@ -40,12 +51,13 @@ export function MarketChart({ data }: { data: ChartPoint[] }) {
               <stop offset="95%" stopColor={palette.fill} stopOpacity={0.01} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: palette.axis }} minTickGap={38} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: palette.axis }} minTickGap={38} tickFormatter={formatChartDate} />
           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: palette.axis }} width={48} />
           <Tooltip
             cursor={{ stroke: palette.line, strokeWidth: 1, strokeDasharray: "3 3" }}
             contentStyle={{ border: `1px solid ${palette.border}`, borderRadius: 4, background: palette.surface, boxShadow: "0 8px 24px rgba(0,0,0,.12)", fontSize: 13 }}
             labelStyle={{ color: palette.ink, fontWeight: 700 }}
+            labelFormatter={formatChartDate}
             formatter={(value) => [Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }), "Price"]}
           />
           <Area type="monotone" dataKey="value" stroke={palette.line} strokeWidth={2} fill="url(#marketArea)" />

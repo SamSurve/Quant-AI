@@ -4,6 +4,8 @@
  * and functionality remain untouched; typography, spacing, rules, and responsive
  * reflow establish the hierarchy. The Research Brief keeps its executive heading
  * strongest while report subheads, metric values, and source metadata remain legible.
+ * Financial Health uses compact source-returned metric cards and a wide company summary
+ * to preserve density without changing the factual research presentation.
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -502,6 +504,20 @@ body { background-image: linear-gradient(to bottom, color-mix(in oklab, var(--ru
 .terminal-fundamentals aside { background: color-mix(in oklab, var(--surface-subtle) 42%, var(--surface)); }
 .terminal-fundamentals .research-metric { min-height: 8.2rem; }
 
+/* Financial Health refinement: compact, source-returned fact row over a wide readable company record. */
+.financial-health-layout { display: grid; }
+.financial-health-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--terminal-rule); }
+.financial-health-metrics .research-metric { min-height: 6.4rem; border-bottom: 1px solid var(--terminal-rule); border-right: 1px solid var(--terminal-rule); }
+.financial-health-metrics .research-metric::after { bottom: 0.5rem; }
+.financial-health-metrics .research-metric:nth-child(2n) { border-right: 0; }
+.financial-health-metrics .research-metric:nth-last-child(-n + 2) { border-bottom: 0; }
+.company-record-summary { display: grid; gap: 1.4rem; padding: clamp(1.15rem, 2vw, 1.65rem); background: color-mix(in oklab, var(--surface-subtle) 36%, var(--surface)); }
+.company-record-summary__content { min-width: 0; }
+.company-record-summary__description { max-width: 76ch; color: var(--ink-soft); font-size: var(--body-reading); line-height: 1.7; text-wrap: pretty; }
+.company-record-summary__metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem 1.25rem; margin-top: 1.15rem; }
+.company-record-summary__metadata > div { min-width: 0; border-top: 1px solid var(--terminal-rule); padding-top: 0.6rem; }
+.company-record-summary__metadata dd { margin-top: 0.25rem; overflow-wrap: anywhere; color: var(--ink); font-size: 0.82rem; line-height: 1.45; }
+
 .deep-analysis-module { border-left: 3px solid color-mix(in oklab, var(--research-indigo) 72%, var(--provenance)); }
 .deep-analysis-module > summary { background: color-mix(in oklab, var(--surface-raised) 80%, var(--surface)); }
 
@@ -525,6 +541,12 @@ body { background-image: linear-gradient(to bottom, color-mix(in oklab, var(--ru
   .terminal-performance > .research-section + .research-section { border-top: 0; border-left: 1px solid var(--terminal-rule); }
   .terminal-performance .research-section--signal { min-height: 100%; }
   .terminal-fundamentals { display: block; }
+  .financial-health-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .financial-health-metrics .research-metric { border-bottom: 0; border-right: 1px solid var(--terminal-rule); }
+  .financial-health-metrics .research-metric:nth-child(2n) { border-right: 1px solid var(--terminal-rule); }
+  .financial-health-metrics .research-metric:last-child { border-right: 0; }
+  .company-record-summary { grid-template-columns: minmax(11rem, 0.3fr) minmax(0, 1fr); gap: clamp(1.5rem, 3vw, 3rem); }
+  .company-record-summary__metadata { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .terminal-events { margin-left: auto; max-width: 34rem; }
   .terminal-news { margin-right: clamp(3rem, 9vw, 11rem); }
 }
@@ -550,6 +572,9 @@ body { background-image: linear-gradient(to bottom, color-mix(in oklab, var(--ru
   .terminal-brief { margin-inline: -0.15rem; }
   .terminal-brief::before { font-size: 0.58rem; line-height: 1.5; }
   .terminal-fundamentals .research-metric { min-height: 7.35rem; }
+  .financial-health-metrics .research-metric { min-height: 6.15rem; }
+  .company-record-summary { gap: 1rem; padding: 1rem; }
+  .company-record-summary__metadata { gap: 0.75rem 1rem; }
   .terminal-news, .terminal-events { margin-inline: -0.15rem; }
   .terminal-news .research-record-row { padding-inline: 1rem; }
   .research-disclosure { margin-inline: -0.15rem; }

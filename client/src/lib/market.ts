@@ -1,5 +1,7 @@
 /**
- * Analyst's Ledger style contract: render typed BFF research data directly.
+ * Financial Health refinement contract: render typed BFF research data directly,
+ * including an existing returned deep-record market-cap fallback when the market
+ * pulse does not supply that value. No contract or provider data is invented.
  * Markdown parsing remains only for legacy conversational AgentOS responses.
  */
 
@@ -302,6 +304,15 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
   const intelligence = research.market_intelligence;
   const deep = research.company_deep_analysis;
   const market = intelligence?.market_pulse || deep?.market_context || research.market;
+  const marketCap = market?.market_cap
+    ?? research.market?.market_cap
+    ?? deep?.market_context?.market_cap
+    ?? deep?.company_overview?.market_cap;
+  const marketCapCurrency = market?.currency
+    || research.market?.currency
+    || deep?.market_context?.currency
+    || deep?.company_overview?.currency
+    || research.company?.currency;
   const currency = research.company?.currency;
   const priceHistory = intelligence?.price_history;
   const dailyHistory = historyPoints(priceHistory?.daily || research.history);
@@ -330,7 +341,7 @@ export function marketBriefFromResearch(research: TypedResearchResponse): Market
     quote: moneyLabel(market?.current_price, currency),
     change: change === null || change === undefined ? "—" : `${change >= 0 ? "+" : ""}${numberLabel(change, { maximumFractionDigits: 2 })}%`,
     metrics: [
-      { label: "Market cap", value: compactMoneyLabel(market?.market_cap, currency) },
+      { label: "Market cap", value: compactMoneyLabel(marketCap, marketCapCurrency) },
       { label: "P / E ratio", value: numberLabel(market?.pe_ratio, { maximumFractionDigits: 2 }) },
       { label: "52-week high", value: moneyLabel(market?.fifty_two_week_high, currency) },
       { label: "52-week low", value: moneyLabel(market?.fifty_two_week_low, currency) },
