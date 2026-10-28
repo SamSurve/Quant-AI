@@ -169,27 +169,36 @@ export function CompanyComparison({ initialCompanyA = "AAPL", initialCompanyB = 
             void handleCompare();
           }}
           className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto] gap-3 items-center"
+          aria-label="Compare two companies"
         >
-          <div className="flex items-center gap-2 border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-3 py-2.5">
-            <span className="text-xs font-mono font-bold text-[var(--research-indigo)]">A</span>
+          <div className="flex items-center gap-2 border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-3 py-2.5 transition-colors focus-within:border-[var(--research-indigo)] focus-within:ring-1 focus-within:ring-[var(--research-indigo)]">
+            <span className="text-xs font-mono font-bold text-[var(--research-indigo)]" aria-hidden="true">A</span>
+            <label htmlFor="comparison-company-a" className="sr-only">First company ticker or symbol</label>
             <input
+              id="comparison-company-a"
               value={companyA}
               onChange={(e) => setCompanyA(e.target.value)}
               placeholder="Company A (e.g. AAPL)"
+              aria-label="First company ticker or symbol"
+              autoComplete="off"
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
             />
           </div>
 
-          <div className="flex justify-center text-[var(--ink-faint)]">
+          <div className="flex justify-center text-[var(--ink-faint)]" aria-hidden="true">
             <ArrowRightLeft className="size-4" />
           </div>
 
-          <div className="flex items-center gap-2 border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-3 py-2.5">
-            <span className="text-xs font-mono font-bold text-[var(--provenance)]">B</span>
+          <div className="flex items-center gap-2 border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-3 py-2.5 transition-colors focus-within:border-[var(--provenance)] focus-within:ring-1 focus-within:ring-[var(--provenance)]">
+            <span className="text-xs font-mono font-bold text-[var(--provenance)]" aria-hidden="true">B</span>
+            <label htmlFor="comparison-company-b" className="sr-only">Second company ticker or symbol</label>
             <input
+              id="comparison-company-b"
               value={companyB}
               onChange={(e) => setCompanyB(e.target.value)}
               placeholder="Company B (e.g. MSFT)"
+              aria-label="Second company ticker or symbol"
+              autoComplete="off"
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
             />
           </div>
@@ -205,18 +214,19 @@ export function CompanyComparison({ initialCompanyA = "AAPL", initialCompanyB = 
         </form>
 
         {/* Quick Picks */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-soft)]">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-soft)]" role="group" aria-label="Quick comparative pairs">
           <span className="ledger-label">Quick pairs:</span>
           {quickPairs.map((pair) => (
             <button
               key={pair.label}
               type="button"
+              aria-label={`Compare ${pair.label}`}
               onClick={() => {
                 setCompanyA(pair.a);
                 setCompanyB(pair.b);
                 void handleCompare(pair.a, pair.b);
               }}
-              className="font-mono text-xs px-2 py-0.5 rounded border border-[var(--rule)] bg-[var(--surface-subtle)] hover:border-[var(--research-indigo)] transition-colors"
+              className="font-mono text-xs px-2 py-0.5 rounded border border-[var(--rule)] bg-[var(--surface-subtle)] hover:border-[var(--research-indigo)] transition-colors focus-visible:ring-1 focus-visible:ring-[var(--research-indigo)]"
             >
               {pair.label}
             </button>
@@ -226,13 +236,13 @@ export function CompanyComparison({ initialCompanyA = "AAPL", initialCompanyB = 
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_8%,var(--surface))] p-4 text-sm">
-          <AlertCircle className="size-4 shrink-0 text-[var(--negative)] mt-0.5" />
+        <div className="flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_8%,var(--surface))] p-4 text-sm" role="alert" aria-live="assertive">
+          <AlertCircle className="size-4 shrink-0 text-[var(--negative)] mt-0.5" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <strong className="font-semibold text-[var(--ink)]">Comparison Notice</strong>
             <p className="mt-0.5 text-xs text-[var(--ink-soft)]">{error}</p>
           </div>
-          <button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]">
+          <button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)] focus-visible:ring-1 focus-visible:ring-[var(--ink)] p-1 rounded" aria-label="Dismiss comparison notice">
             <X className="size-4" />
           </button>
         </div>
@@ -240,7 +250,7 @@ export function CompanyComparison({ initialCompanyA = "AAPL", initialCompanyB = 
 
       {/* Results View */}
       {report && (
-        <div className="space-y-6">
+        <div className="space-y-6" id="comparison-results" aria-live="polite">
           {/* Header Cards (Company A vs Company B) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card A */}
@@ -438,26 +448,27 @@ export function CompanyComparison({ initialCompanyA = "AAPL", initialCompanyB = 
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs" aria-label="Audited fundamentals and metric comparison matrix">
+                <caption className="sr-only">Detailed comparative metrics between {symbolA} and {symbolB}</caption>
                 <thead>
                   <tr className="border-b border-[var(--rule)] bg-[var(--surface-subtle)] text-[var(--ink-faint)]">
-                    <th className="p-3 font-semibold">Metric</th>
-                    <th className="p-3 font-semibold text-right">{symbolA}</th>
-                    <th className="p-3 font-semibold text-right">{symbolB}</th>
-                    <th className="p-3 font-semibold text-right">Diff</th>
-                    <th className="p-3 font-semibold text-center">Advantage</th>
-                    <th className="p-3 font-semibold text-center">Alignment</th>
+                    <th scope="col" className="p-3 font-semibold">Metric</th>
+                    <th scope="col" className="p-3 font-semibold text-right">{symbolA}</th>
+                    <th scope="col" className="p-3 font-semibold text-right">{symbolB}</th>
+                    <th scope="col" className="p-3 font-semibold text-right">Diff</th>
+                    <th scope="col" className="p-3 font-semibold text-center">Advantage</th>
+                    <th scope="col" className="p-3 font-semibold text-center">Alignment</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--rule)]">
                   {report.metrics.map((row) => (
                     <tr key={row.metric} className="hover:bg-[var(--surface-raised)] transition-colors">
-                      <td className="p-3 font-medium text-[var(--ink)] capitalize">
+                      <th scope="row" className="p-3 font-medium text-[var(--ink)] capitalize text-left font-normal">
                         {row.metric.replace(/_/g, " ")}
                         {row.currency && (
                           <span className="ml-1 text-[10px] text-[var(--ink-faint)] font-mono">({row.currency})</span>
                         )}
-                      </td>
+                      </th>
                       <td className="p-3 text-right font-mono font-medium text-[var(--ink)]">
                         {formatMetricValue(row.company_a_value, row.unit, row.currency_a || report.company_a.currency)}
                       </td>

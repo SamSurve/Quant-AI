@@ -156,6 +156,15 @@ export default function Home() {
   useEffect(() => { void verifyConnection(); }, []);
   useEffect(() => () => activeResearchController.current?.abort(), []);
 
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [settingsOpen]);
+
   function recordResearch(type: string, queryLabel: string, status: string, confidence?: string) {
     setResearchActivity((current) => [{ id: nanoid(), type, query: queryLabel, status, confidence }, ...current].slice(0, 5));
   }
@@ -275,13 +284,14 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setActiveTab("market_intelligence")}
+              aria-current={activeTab === "market_intelligence" ? "page" : undefined}
               className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === "market_intelligence"
                   ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
                   : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
               }`}
             >
-              <BarChart3 className="size-3.5" />
+              <BarChart3 className="size-3.5" aria-hidden="true" />
               <span>Market Intelligence</span>
             </button>
 
@@ -293,39 +303,42 @@ export default function Home() {
                   void requestResearch(ticker, "company_deep_analysis");
                 }
               }}
+              aria-current={activeTab === "company_deep_analysis" ? "page" : undefined}
               className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === "company_deep_analysis"
                   ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
                   : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
               }`}
             >
-              <Building2 className="size-3.5" />
+              <Building2 className="size-3.5" aria-hidden="true" />
               <span>Deep Analysis</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("company_comparison")}
+              aria-current={activeTab === "company_comparison" ? "page" : undefined}
               className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === "company_comparison"
                   ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
                   : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
               }`}
             >
-              <Scale className="size-3.5" />
+              <Scale className="size-3.5" aria-hidden="true" />
               <span>Company Comparison</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("ai_research")}
+              aria-current={activeTab === "ai_research" ? "page" : undefined}
               className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === "ai_research"
                   ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
                   : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
               }`}
             >
-              <BookOpenText className="size-3.5" />
+              <BookOpenText className="size-3.5" aria-hidden="true" />
               <span>AI Research Desk</span>
             </button>
           </nav>
@@ -474,9 +487,17 @@ export default function Home() {
                   <span className="research-state text-xs font-mono">{selectedSeries.length ? `${selectedSeries.length} points` : "Unavailable"}</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rule)] px-4 py-2.5">
-                  <div className="flex flex-wrap gap-1" role="tablist">
+                  <div className="flex flex-wrap gap-1" role="tablist" aria-label="Historical price timeframe">
                     {brief.priceHistory.availablePeriods.map((period) => (
-                      <button key={period} type="button" onClick={() => setActiveHistoryPeriod(period)} className={`company-period-tab text-xs px-2 py-1 rounded ${activeHistoryPeriod === period ? "is-active font-bold bg-[var(--surface-raised)]" : ""}`}>
+                      <button
+                        key={period}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeHistoryPeriod === period}
+                        aria-label={`Timeframe ${period}`}
+                        onClick={() => setActiveHistoryPeriod(period)}
+                        className={`company-period-tab text-xs px-2 py-1 rounded transition-colors ${activeHistoryPeriod === period ? "is-active font-bold bg-[var(--surface-raised)]" : ""}`}
+                      >
                         {historyPeriodLabels[period]}
                       </button>
                     ))}
@@ -777,14 +798,14 @@ export default function Home() {
 
       {/* Settings Modal */}
       {settingsOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Research endpoint settings">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title">
           <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--rule)] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="ledger-label">Connection Settings</p>
-                <h2 className="mt-1 font-serif text-xl font-bold text-[var(--ink)]">Research Desk Endpoint</h2>
+                <h2 id="settings-dialog-title" className="mt-1 font-serif text-xl font-bold text-[var(--ink)]">Research Desk Endpoint</h2>
               </div>
-              <button type="button" onClick={() => setSettingsOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close settings">
+              <button type="button" onClick={() => setSettingsOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--ink)] p-1 rounded" aria-label="Close settings">
                 <X className="size-5" />
               </button>
             </div>
