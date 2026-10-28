@@ -1,27 +1,52 @@
 /**
- * Major research-terminal contract: a unified company record, connected market
- * evidence, optional interpretation, and expandable source workflow. The
- * expandable evidence appendix. The Research Canvas distinguishes a typed input
- * from a verified record through hierarchy and layout—not fabricated content or
- * an automatic network request. No data is displayed unless it originates in
- * the existing typed research or AgentOS flow.
- * Recent News renders the provider-supplied summary only when the typed response includes it.
- * Financial Health presents five compact returned metrics and a wide company-record
- * summary without changing the existing research flow or API contract.
+ * QuantAI Finance Agent — Responsive Financial Research Desk.
+ * Organised into three primary destinations:
+ * 1. Market Intelligence
+ * 2. Company Deep Analysis
+ * 3. Company Comparison
+ * Plus dedicated AI Research Workspace (no floating chatbot).
+ *
+ * Strictly preserves all existing backend contracts, error recovery,
+ * and deterministic evidence separation.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { AlertCircle, BarChart3, BookOpenText, Building2, ChevronDown, ChevronRight, FileSearch, Landmark, LoaderCircle, Network, Newspaper, RefreshCw, Search, Settings2, Sparkles, WifiOff, X } from "lucide-react";
+import {
+  AlertCircle,
+  BarChart3,
+  Calendar,
+  ExternalLink,
+  BookOpenText,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  FileSearch,
+  Landmark,
+  Layers,
+  LoaderCircle,
+  Network,
+  Newspaper,
+  RefreshCw,
+  Scale,
+  Search,
+  Settings2,
+  Sparkles,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel, type ChatMessage } from "@/components/ChatPanel";
+import { CompanyComparison } from "@/components/CompanyComparison";
 import { MarketChart } from "@/components/MarketChart";
 import { MetricCard } from "@/components/MetricCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { fetchAgentInfo, getAgentosUrl, runFinanceAgent, saveAgentosUrl } from "@/lib/agentos";
 import { emptyMarketBrief, marketBriefFromResearch, type HistoryPeriod, type MarketBrief } from "@/lib/market";
 import { researchErrorKind, runTypedResearch, type TypedResearchResponse } from "@/lib/research";
+
+export type DestinationTab = "market_intelligence" | "company_deep_analysis" | "company_comparison" | "ai_research";
 
 const starterTickers = ["AAPL", "MSFT", "NVDA", "TSLA"];
 const historyPeriodLabels: Record<HistoryPeriod, string> = { "1D": "1D", "1W": "1W", "1M": "1M", "3M": "3M", "6M": "6M", "1Y": "1Y", "5Y": "5Y" };
@@ -95,6 +120,7 @@ function workspaceResearchRecord(marketResearch: TypedResearchResponse, deepRese
 }
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<DestinationTab>("market_intelligence");
   const [ticker, setTicker] = useState("AAPL");
   const [query, setQuery] = useState("AAPL");
   const [brief, setBrief] = useState<MarketBrief>(emptyMarketBrief);
@@ -146,9 +172,6 @@ export default function Home() {
     researchSequence.current = requestId;
     setQuery(normalized);
     setActiveResearchMode(mode);
-    // Do not relabel a prior verified record with an unverified input while the
-    // entity lookup is pending or fails.  The new ticker appears only after the
-    // typed response proves the resolved company identity.
     setBrief(emptyMarketBrief);
     setIsResearching(true);
     setError(null);
@@ -239,93 +262,546 @@ export default function Home() {
     return labels.map((label) => brief.deepAnalysis?.financials.find((metric) => metric.label === label) || { label, value: "—", tone: "neutral" as const });
   }, [brief.deepAnalysis]);
   const companySummaryDetails = useMemo(() => (brief.deepAnalysis?.overview || []).filter((item) => !["Company", "Ticker", "Website"].includes(item.label)), [brief.deepAnalysis]);
-  const navigationItems = [
-    { id: "snapshot", label: "Snapshot", icon: Landmark },
-    { id: "performance", label: "Performance", icon: BarChart3 },
-    { id: "fundamentals", label: "Fundamentals", icon: Building2 },
-    { id: "news", label: "News", icon: Newspaper },
-    { id: "analysis", label: "Research", icon: BookOpenText },
-  ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="command-bar sticky top-0 z-40 border-b border-[var(--rule)] backdrop-blur-md">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Top Navigation Bar */}
+      <header className="command-bar sticky top-0 z-40 border-b border-[var(--rule)] bg-[var(--surface)]/95 backdrop-blur-md">
         <div className="research-command-inner mx-auto flex h-16 max-w-[90rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
           <BrandMark />
-          <nav className="hidden items-center gap-5 text-[11px] font-semibold tracking-[0.06em] text-[var(--ink-soft)] lg:flex" aria-label="Product navigation"><a href="#snapshot" className="hover:text-[var(--research-indigo)]">Research</a><a href="#performance" className="hover:text-[var(--research-indigo)]">Market data</a><a href="#research-context" className="hover:text-[var(--research-indigo)]">Insights</a><a href="#news" className="hover:text-[var(--research-indigo)]">News</a></nav>
-          <div className="hidden items-center gap-3 text-xs text-[var(--ink-soft)] xl:flex"><span className="h-3 w-px bg-[var(--rule)]" /><span className={connection === "ready" ? "text-[var(--provenance)]" : "text-[var(--negative)]"}>{connection === "ready" ? "Research Desk connected" : connection === "checking" ? "Checking Research Desk" : "Research Desk unavailable"}</span></div>
+
+          {/* Primary Destination Switcher */}
+          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1 scrollbar-none" aria-label="Primary destinations">
+            <button
+              type="button"
+              onClick={() => setActiveTab("market_intelligence")}
+              className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === "market_intelligence"
+                  ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
+                  : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
+              }`}
+            >
+              <BarChart3 className="size-3.5" />
+              <span>Market Intelligence</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("company_deep_analysis");
+                if (hasResearch && !brief.deepAnalysis) {
+                  void requestResearch(ticker, "company_deep_analysis");
+                }
+              }}
+              className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === "company_deep_analysis"
+                  ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
+                  : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
+              }`}
+            >
+              <Building2 className="size-3.5" />
+              <span>Deep Analysis</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("company_comparison")}
+              className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === "company_comparison"
+                  ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
+                  : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
+              }`}
+            >
+              <Scale className="size-3.5" />
+              <span>Company Comparison</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai_research")}
+              className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wide transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === "ai_research"
+                  ? "bg-[var(--surface-raised)] text-[var(--research-indigo)] border border-[var(--rule-strong)] shadow-xs"
+                  : "text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--surface-subtle)]"
+              }`}
+            >
+              <BookOpenText className="size-3.5" />
+              <span>AI Research Desk</span>
+            </button>
+          </nav>
+
+          {/* Right Controls */}
           <div className="flex items-center gap-2">
+            <div className="hidden xl:flex items-center gap-2 text-xs text-[var(--ink-soft)] mr-1">
+              <span className={`size-2 rounded-full ${connection === "ready" ? "bg-[var(--provenance)]" : "bg-[var(--negative)]"}`} />
+              <span className="font-mono text-[11px]">{connection === "ready" ? "Connected" : "Offline"}</span>
+            </div>
             <ThemeToggle />
-            <button type="button" onClick={() => void verifyConnection()} className="research-icon-button" title="Check research endpoint" aria-label="Check research endpoint">{connection === "checking" ? <LoaderCircle className="size-4 animate-spin" /> : connection === "ready" ? <Network className="size-4 text-[var(--provenance)]" /> : <WifiOff className="size-4 text-[var(--negative)]" />}</button>
-            <button type="button" onClick={() => setSettingsOpen(true)} className="research-icon-button" aria-label="Research endpoint settings"><Settings2 className="size-4" /></button>
+            <button
+              type="button"
+              onClick={() => void verifyConnection()}
+              className="research-icon-button"
+              title="Check research endpoint"
+              aria-label="Check research endpoint"
+            >
+              {connection === "checking" ? <LoaderCircle className="size-4 animate-spin" /> : connection === "ready" ? <Network className="size-4 text-[var(--provenance)]" /> : <WifiOff className="size-4 text-[var(--negative)]" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="research-icon-button"
+              aria-label="Research endpoint settings"
+            >
+              <Settings2 className="size-4" />
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="research-shell terminal-workspace mx-auto max-w-[90rem] px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
-        {error ? <div className="mb-5 flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_7%,var(--surface))] px-4 py-3 text-sm" role="alert"><AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--negative)]" /><div className="min-w-0 flex-1"><strong className="font-semibold text-[var(--ink)]">Research request needs attention.</strong><p className="mt-1 text-[var(--ink-soft)]">{recoveryMessage(error)}</p></div><button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss message"><X className="size-4" /></button></div> : null}
-
-        <section className="research-masthead terminal-hero" id="market">
-          <div className="research-kicker"><span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Live research</div>
-          <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div>
-              <p className="max-w-3xl font-serif text-4xl leading-[1.02] tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">Company research, held to the evidence.</p>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Search a listed company for market context, price history, reported fundamentals, sourced news, and clearly separated optional interpretation.</p>
+      {/* Main Container */}
+      <main className="research-shell terminal-workspace mx-auto max-w-[90rem] w-full px-4 py-5 sm:px-6 lg:px-10 lg:py-7 flex-1">
+        {/* Global Error Banner */}
+        {error ? (
+          <div className="mb-5 flex items-start gap-3 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_7%,var(--surface))] px-4 py-3 text-sm" role="alert">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--negative)]" />
+            <div className="min-w-0 flex-1">
+              <strong className="font-semibold text-[var(--ink)]">Research request needs attention.</strong>
+              <p className="mt-1 text-[var(--ink-soft)]">{recoveryMessage(error)}</p>
             </div>
-            <p className="research-status max-w-sm">{availabilityCopy(connection, isResearching, brief)}</p>
+            <button type="button" onClick={() => setError(null)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Dismiss message">
+              <X className="size-4" />
+            </button>
           </div>
-          <form onSubmit={(event) => { event.preventDefault(); void requestResearch(); }} className="research-control-deck workspace-search mt-7 flex flex-col gap-2 sm:flex-row">
-            <label className="sr-only" htmlFor="company-search">Search a company or ticker</label>
-            <div className="research-search-field flex min-w-0 flex-1 items-center gap-3 border border-[var(--rule-strong)] bg-[var(--surface)] px-4 py-3.5 transition-colors focus-within:border-[var(--research-indigo)]"><Search className="size-4 shrink-0 text-[var(--research-indigo)]" /><input id="company-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a company or ticker" className="min-w-0 flex-1 bg-transparent text-base font-medium text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-faint)]" /><kbd className="hidden border border-[var(--rule)] bg-[var(--surface-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">↵</kbd></div>
-            <button type="submit" disabled={!query.trim()} className="research-primary-button">{isResearching ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}{isResearching ? "Researching" : "Research"}</button>
-            <button type="button" onClick={() => void requestResearch(query, "company_deep_analysis")} disabled={!query.trim()} className="research-secondary-button"><FileSearch className="size-4" /> Deep analysis</button>
-          </form>
-          <div className="research-quick-search mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[var(--ink-soft)]"><span className="ledger-label">Quick search</span>{starterTickers.map((symbol) => <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} className="font-mono font-semibold transition-colors hover:text-[var(--research-indigo)] disabled:opacity-45">{symbol}</button>)}</div>
-        </section>
+        ) : null}
 
-        <nav className="company-research-rail mt-3" aria-label="Company research areas">
-          {navigationItems.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} className="company-research-rail__link"><Icon className="size-3.5" /><span>{label}</span></a>)}
-          <span className="company-research-rail__status">{hasResearch ? `${ticker} · ${brief.quoteLabel.toLowerCase()}` : "Awaiting verified company"}</span>
-        </nav>
+        {/* DESTINATION 1: MARKET INTELLIGENCE */}
+        {activeTab === "market_intelligence" && (
+          <div className="space-y-6">
+            {/* Search and Masthead */}
+            <section className="research-masthead terminal-hero p-5 sm:p-7 border border-[var(--rule)] bg-[var(--surface)]">
+              <div className="research-kicker">
+                <span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Market Intelligence
+              </div>
+              <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div>
+                  <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[var(--ink)]">
+                    Market Intelligence & Evidence
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-xs sm:text-sm text-[var(--ink-soft)] leading-relaxed">
+                    Search a listed company for deterministic market context, live quote records, technical signals, price action, and sourced event reporting.
+                  </p>
+                </div>
+                <p className="research-status max-w-sm text-xs font-mono">{availabilityCopy(connection, isResearching, brief)}</p>
+              </div>
 
-        <section className={`research-identity company-record-panel mt-4 ${hasResearch ? "is-verified" : "is-pending"}`} aria-live="polite">
-          <div className="research-identity__content"><p className="ledger-label">{canvasLabel}</p><div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="font-serif text-4xl tracking-[-0.055em] text-[var(--ink)] sm:text-5xl">{canvasTitle}</h1>{hasResearch && brief.companyName !== "—" ? <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{brief.companyName}</p> : null}</div><p className="research-identity__description">{canvasDescription}</p>{!hasResearch && canvasQuery ? <p className="research-identity__query"><span className="ledger-label">Search input</span><span className="font-mono font-semibold text-[var(--ink)]">{canvasQuery}</span></p> : null}</div>
-          <div className="research-price"><p className="ledger-label">{canvasStatus}</p><p className="mt-1 font-mono text-3xl font-semibold tracking-[-0.06em] tabular-nums text-[var(--ink)]">{isResearching ? <span className="inline-block h-7 w-24 align-middle shimmer-line" /> : canvasValue}</p><p className={`mt-1 text-xs font-semibold ${hasResearch && brief.change.startsWith("-") ? "text-[var(--negative)]" : hasResearch ? "text-[var(--positive)]" : "text-[var(--ink-faint)]"}`}>{canvasDetail}</p></div>
-        </section>
+              {/* Search Form */}
+              <form onSubmit={(e) => { e.preventDefault(); void requestResearch(); }} className="research-control-deck workspace-search mt-6 flex flex-col gap-2 sm:flex-row">
+                <label className="sr-only" htmlFor="company-search">Search a company or ticker</label>
+                <div className="research-search-field flex min-w-0 flex-1 items-center gap-3 border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-4 py-3 transition-colors focus-within:border-[var(--research-indigo)]">
+                  <Search className="size-4 shrink-0 text-[var(--research-indigo)]" />
+                  <input
+                    id="company-search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search a company or ticker (e.g. AAPL, Microsoft)"
+                    className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
+                  />
+                  <kbd className="hidden border border-[var(--rule)] bg-[var(--surface-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ink-faint)] sm:inline">↵</kbd>
+                </div>
+                <button type="submit" disabled={!query.trim() || isResearching} className="research-primary-button">
+                  {isResearching ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}
+                  <span>{isResearching ? "Searching…" : "Search"}</span>
+                </button>
+              </form>
 
-        <section className="research-section terminal-snapshot mt-5 overflow-hidden" aria-labelledby="snapshot-heading">
-          <div className="research-section-heading"><div><p className="ledger-label">Market snapshot</p><h2 id="snapshot-heading">The record at a glance</h2></div><button type="button" onClick={() => void requestResearch(ticker)} disabled={isResearching || isOffline || !hasResearch} className="research-text-button"><RefreshCw className={`size-3.5 ${isResearching ? "animate-spin" : ""}`} /> Refresh</button></div>
-          <div className="grid grid-cols-2 border-y border-[var(--rule)] sm:grid-cols-3 lg:grid-cols-6">{brief.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}</div>
-          <p className="research-section-foot">Values are shown only when returned by the current market record.</p>
-        </section>
+              {/* Quick Picks */}
+              <div className="research-quick-search mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ink-soft)]">
+                <span className="ledger-label">Quick search:</span>
+                {starterTickers.map((symbol) => (
+                  <button key={symbol} type="button" onClick={() => void requestResearch(symbol)} className="font-mono font-semibold transition-colors hover:text-[var(--research-indigo)]">
+                    {symbol}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-        <section className="terminal-performance mt-5 grid gap-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,.45fr)]" id="performance">
-          <section className="research-section research-section--history overflow-hidden" aria-labelledby="history-heading"><div className="research-section-heading"><div><p className="ledger-label">Price and performance</p><h2 id="history-heading">Returned price movement</h2></div><span className="research-state">{selectedSeries.length ? `${selectedSeries.length} returned closes` : "Series unavailable"}</span></div><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] px-4 py-3 sm:px-5"><div className="flex flex-wrap gap-1" role="tablist" aria-label="Returned history periods">{brief.priceHistory.availablePeriods.map((period) => <button key={period} type="button" onClick={() => setActiveHistoryPeriod(period)} className={`company-period-tab ${activeHistoryPeriod === period ? "is-active" : ""}`} role="tab" aria-selected={activeHistoryPeriod === period}>{historyPeriodLabels[period]}</button>)}</div>{selectedPerformance ? <div className="flex items-center gap-4 text-[11px] text-[var(--ink-soft)]"><span>Range <strong className="font-mono text-[var(--ink)]">{selectedPerformance.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}–{selectedPerformance.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></span><span className={selectedPerformance.change >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"}>{selectedPerformance.change >= 0 ? "+" : ""}{selectedPerformance.change.toFixed(2)}%</span></div> : null}</div><MarketChart data={selectedSeries} /></section>
-          <section className="research-section research-section--signal overflow-hidden" id="signal" aria-labelledby="signal-heading"><div className="research-section-heading"><div><p className="ledger-label">Key signals</p><h2 id="signal-heading">Market signal</h2></div>{brief.signal ? <span className={`research-state ${brief.signal.label === "BULLISH" ? "text-[var(--positive)]" : brief.signal.label === "BEARISH" ? "text-[var(--negative)]" : ""}`}>{brief.signal.label}</span> : null}</div>{brief.signal ? <div className="p-5"><div className="grid grid-cols-2 gap-5 border-b border-[var(--rule)] pb-5"><div><p className="ledger-label">Score</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.score}</p></div><div><p className="ledger-label">Confidence</p><p className="mt-2 font-mono text-2xl font-semibold text-[var(--ink)]">{brief.signal.confidence}</p></div></div><p className="mt-5 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.signal.explanation}</p><ul className="mt-4 space-y-2 text-xs leading-relaxed text-[var(--ink-soft)]">{brief.signal.factors.map((factor) => <li key={factor} className="flex gap-2"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--provenance)]" />{factor}</li>)}</ul><details className="research-details mt-5"><summary>Signal method</summary><p>{brief.signal.methodology}</p></details></div> : <div className="p-5"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">Signal unavailable until sufficient deterministic history is sourced.</p></div>}</section>
-        </section>
+            {/* Company Identity Header */}
+            <section className={`research-identity company-record-panel p-5 border border-[var(--rule)] bg-[var(--surface)] ${hasResearch ? "is-verified" : "is-pending"}`} aria-live="polite">
+              <div className="research-identity__content">
+                <p className="ledger-label">{canvasLabel}</p>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 className="font-serif text-3xl sm:text-4xl text-[var(--ink)] tracking-tight">{canvasTitle}</h2>
+                  {hasResearch && brief.companyName !== "—" ? <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-soft)]">{brief.companyName}</p> : null}
+                </div>
+                <p className="research-identity__description text-xs text-[var(--ink-soft)] mt-1">{canvasDescription}</p>
+              </div>
+              <div className="research-price text-right">
+                <p className="ledger-label">{canvasStatus}</p>
+                <p className="mt-0.5 font-mono text-2xl sm:text-3xl font-semibold tabular-nums text-[var(--ink)]">
+                  {isResearching ? <span className="inline-block h-6 w-20 align-middle shimmer-line" /> : canvasValue}
+                </p>
+                <p className={`mt-0.5 text-xs font-semibold ${hasResearch && brief.change.startsWith("-") ? "text-[var(--negative)]" : hasResearch ? "text-[var(--positive)]" : "text-[var(--ink-faint)]"}`}>
+                  {canvasDetail}
+                </p>
+              </div>
+            </section>
 
-        <div className="terminal-brief mt-7" id="analysis"><AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching} unavailableNotice={brief.aiInterpretationNotice} /></div>
+            {/* Market Snapshot (6 Core Metrics) */}
+            <section className="research-section terminal-snapshot border border-[var(--rule)] bg-[var(--surface)] overflow-hidden" aria-labelledby="snapshot-heading">
+              <div className="research-section-heading p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                <div>
+                  <p className="ledger-label">Market snapshot</p>
+                  <h3 id="snapshot-heading" className="text-base font-semibold text-[var(--ink)]">Key Market Indicators</h3>
+                </div>
+                <button type="button" onClick={() => void requestResearch(ticker)} disabled={isResearching || isOffline || !hasResearch} className="research-text-button flex items-center gap-1.5 text-xs">
+                  <RefreshCw className={`size-3.5 ${isResearching ? "animate-spin" : ""}`} /> Refresh
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 divide-x divide-[var(--rule)]">
+                {brief.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
+              </div>
+            </section>
 
-        <section className="research-section terminal-fundamentals mt-6 overflow-hidden" id="fundamentals" aria-labelledby="fundamentals-heading">
-          <div className="research-section-heading"><div><p className="ledger-label">Fundamentals and company context</p><h2 id="fundamentals-heading">Reported financial health</h2></div>{brief.deepAnalysis?.profile.fiscalPeriodEnd ? <span className="research-state">Fiscal period · {brief.deepAnalysis.profile.fiscalPeriodEnd}</span> : <span className="research-state">Returned fields only</span>}</div>
-          {brief.deepAnalysis ? <div className="financial-health-layout"><div className="financial-health-metrics" aria-label="Reported financial health metrics">{compactFinancials.map((metric) => <MetricCard key={metric.label} metric={metric} variant="compact" />)}</div><section className="company-record-summary" aria-labelledby="company-summary-heading"><div><p className="ledger-label">Company record</p><h3 id="company-summary-heading" className="mt-1 font-serif text-2xl tracking-[-0.035em] text-[var(--ink)]">Company record summary</h3></div><div className="company-record-summary__content">{brief.deepAnalysis.profile.description ? <p className="company-record-summary__description">{brief.deepAnalysis.profile.description}</p> : <p className="company-record-summary__description">No sourced company description was returned.</p>}{companySummaryDetails.length ? <dl className="company-record-summary__metadata">{companySummaryDetails.map((item) => <div key={item.label}><dt className="ledger-label">{item.label}</dt><dd>{item.value}</dd></div>)}</dl> : null}{brief.deepAnalysis.profile.website ? <a href={brief.deepAnalysis.profile.website} target="_blank" rel="noreferrer" className="research-source-link mt-4">Company website <ChevronRight className="size-3" /></a> : null}</div></section></div> : <div className="flex flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between"><p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-soft)]">Reported fundamentals, governance, and company profile fields are available through the existing deep-analysis record when the source supplies them.</p><button type="button" onClick={() => void requestResearch(ticker, "company_deep_analysis")} disabled={!hasResearch || isResearching} className="research-secondary-button shrink-0"><FileSearch className="size-4" /> Load fundamentals</button></div>}
-          <p className="research-section-foot">Peer discovery, ownership, and financial time-series are not returned by the current contract. Values remain visible only when supported by the returned research evidence.</p>
-        </section>
+            {/* Price Chart & Key Signals */}
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.5fr)]">
+              {/* Performance Chart */}
+              <section className="research-section border border-[var(--rule)] bg-[var(--surface)] overflow-hidden">
+                <div className="research-section-heading p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                  <div>
+                    <p className="ledger-label">Price and performance</p>
+                    <h3 className="text-base font-semibold text-[var(--ink)]">Returned Price Action</h3>
+                  </div>
+                  <span className="research-state text-xs font-mono">{selectedSeries.length ? `${selectedSeries.length} points` : "Unavailable"}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rule)] px-4 py-2.5">
+                  <div className="flex flex-wrap gap-1" role="tablist">
+                    {brief.priceHistory.availablePeriods.map((period) => (
+                      <button key={period} type="button" onClick={() => setActiveHistoryPeriod(period)} className={`company-period-tab text-xs px-2 py-1 rounded ${activeHistoryPeriod === period ? "is-active font-bold bg-[var(--surface-raised)]" : ""}`}>
+                        {historyPeriodLabels[period]}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedPerformance ? (
+                    <div className="flex items-center gap-3 text-xs text-[var(--ink-soft)] font-mono">
+                      <span>Range: <strong>{selectedPerformance.low.toFixed(2)}–{selectedPerformance.high.toFixed(2)}</strong></span>
+                      <span className={selectedPerformance.change >= 0 ? "text-[var(--positive)] font-bold" : "text-[var(--negative)] font-bold"}>
+                        {selectedPerformance.change >= 0 ? "+" : ""}{selectedPerformance.change.toFixed(2)}%
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+                <MarketChart data={selectedSeries} />
+              </section>
 
-        {brief.deepAnalysis ? <details className="research-disclosure mt-8" open={activeResearchMode === "company_deep_analysis"}><summary><span><span className="ledger-label">Company report</span><strong>Deep analysis</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-2"><div><p className="ledger-label">Company profile</p><dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.overview.slice(0, 8).map((item) => <div key={item.label}><dt className="ledger-label">{item.label}</dt><dd className="mt-1 text-sm text-[var(--ink)]">{item.value}</dd></div>)}</dl></div><div><p className="ledger-label">Financial health</p><div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{brief.deepAnalysis.financials.slice(0, 6).map((metric) => <div key={metric.label}><p className="ledger-label">{metric.label}</p><p className="mt-1 font-mono text-sm text-[var(--ink)]">{metric.value}</p></div>)}</div></div></div><div className="mt-7 grid gap-7 border-t border-[var(--rule)] pt-6 lg:grid-cols-2"><div><p className="ledger-label">Governance</p><p className="mt-2 text-sm font-semibold text-[var(--ink)]">{brief.deepAnalysis.governance.ceo}</p>{brief.deepAnalysis.governance.leadership.length ? <ul className="mt-3 space-y-1 text-xs text-[var(--ink-soft)]">{brief.deepAnalysis.governance.leadership.map((person) => <li key={person}>{person}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--ink-soft)]">No verified leadership record was returned.</p>}</div><div><p className="ledger-label">Competitive evidence</p><p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">{brief.deepAnalysis.competitors.note}</p></div></div></div></details> : null}
+              {/* Market Signal */}
+              <section className="research-section border border-[var(--rule)] bg-[var(--surface)] overflow-hidden">
+                <div className="research-section-heading p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                  <div>
+                    <p className="ledger-label">Technical signal</p>
+                    <h3 className="text-base font-semibold text-[var(--ink)]">Quantitative Pulse</h3>
+                  </div>
+                  {brief.signal ? (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${brief.signal.label === "BULLISH" ? "bg-[var(--positive)]/15 text-[var(--positive)]" : brief.signal.label === "BEARISH" ? "bg-[var(--negative)]/15 text-[var(--negative)]" : "bg-[var(--surface-subtle)] text-[var(--ink-soft)]"}`}>
+                      {brief.signal.label}
+                    </span>
+                  ) : null}
+                </div>
+                {brief.signal ? (
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 border-b border-[var(--rule)] pb-3 text-center">
+                      <div>
+                        <p className="ledger-label">Score</p>
+                        <p className="font-mono text-xl font-bold text-[var(--ink)] mt-1">{brief.signal.score}</p>
+                      </div>
+                      <div className="border-l border-[var(--rule)]">
+                        <p className="ledger-label">Confidence</p>
+                        <p className="font-mono text-xl font-bold text-[var(--ink)] mt-1">{brief.signal.confidence}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[var(--ink-soft)] leading-relaxed">{brief.signal.explanation}</p>
+                    <ul className="space-y-1.5 text-xs text-[var(--ink-soft)]">
+                      {brief.signal.factors.map((factor) => (
+                        <li key={factor} className="flex gap-2">
+                          <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--provenance)]" />
+                          <span>{factor}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="p-5 text-center text-xs text-[var(--ink-soft)]">
+                    Market signals appear once sufficient history is sourced.
+                  </div>
+                )}
+              </section>
+            </div>
 
-        <section className="research-section mt-8 overflow-hidden" id="news" aria-labelledby="news-heading"><div className="research-section-heading"><div><p className="ledger-label">Recent news</p><h2 id="news-heading">What is moving the conversation</h2></div><span className="research-state">Sourced reporting</span></div>{isResearching ? <div className="space-y-3 p-5"><div className="shimmer-line h-5 w-full" /><div className="shimmer-line h-5 w-[86%]" /><div className="shimmer-line h-5 w-[72%]" /></div> : brief.news.length ? <ol className="research-record-list divide-y divide-[var(--rule)]">{brief.news.slice(0, 6).map((item, index) => <li key={`${item.title}-${index}`} className="research-record-row research-news-row grid gap-2 px-5 py-4 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:px-7"><span className="font-mono text-xs text-[var(--provenance)]">{String(index + 1).padStart(2, "0")}</span><div className="min-w-0"><p className="text-sm leading-relaxed text-[var(--ink)]">{item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="transition-colors hover:text-[var(--research-indigo)] hover:underline">{item.title}</a> : item.title}</p><p className="mt-1 text-xs text-[var(--ink-faint)]">{[item.publisher, displayDate(item.publishedAt)].filter(Boolean).join(" · ") || "Source metadata unavailable"}</p>{item.summary ? <p className="research-news-summary mt-2.5 max-w-3xl text-sm leading-relaxed text-[var(--ink-soft)]">{item.summary}</p> : null}{item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="research-source-link mt-3">View source <ChevronRight className="size-3" /></a> : null}</div></li>)}</ol> : <div className="p-5 sm:p-7"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">No sourced recent news was returned for this request.</p></div>}</section>
+            {/* Recent News & Events */}
+            <div className="grid gap-5 md:grid-cols-2">
+              {/* News */}
+              <section className="research-section border border-[var(--rule)] bg-[var(--surface)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Newspaper className="size-4 text-[var(--research-indigo)]" />
+                    <h3 className="text-sm font-semibold text-[var(--ink)]">Recent Sourced News</h3>
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--ink-faint)]">Filtered by relevance</span>
+                </div>
+                {brief.news.length ? (
+                  <ol className="divide-y divide-[var(--rule)] text-xs">
+                    {brief.news.slice(0, 5).map((item, idx) => (
+                      <li key={idx} className="p-3.5 hover:bg-[var(--surface-raised)] transition-colors">
+                        <p className="font-medium text-[var(--ink)] leading-snug">
+                          {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="hover:underline hover:text-[var(--research-indigo)]">{item.title}</a> : item.title}
+                        </p>
+                        <p className="mt-1 text-[10px] text-[var(--ink-faint)]">
+                          {[item.publisher, displayDate(item.publishedAt)].filter(Boolean).join(" · ")}
+                        </p>
+                        {item.summary && <p className="mt-1 text-xs text-[var(--ink-soft)] line-clamp-2">{item.summary}</p>}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="p-5 text-center text-xs text-[var(--ink-soft)]">No sourced news available.</div>
+                )}
+              </section>
 
-        <section className="research-section mt-8 overflow-hidden" aria-labelledby="events-heading"><div className="research-section-heading"><div><p className="ledger-label">Events</p><h2 id="events-heading">Calendar records</h2></div></div>{brief.events.length ? <ol className="research-record-list divide-y divide-[var(--rule)]">{brief.events.map((event, index) => <li key={`${event.title}-${event.date}-${index}`} className="research-record-row grid gap-2 px-5 py-4 sm:grid-cols-[9rem_1fr_auto] sm:items-center sm:px-7"><span className="font-mono text-xs text-[var(--provenance)]">{event.date}</span><div><p className="text-sm font-semibold text-[var(--ink)]">{event.title}</p><p className="mt-1 text-xs text-[var(--ink-faint)]">{event.source}</p></div><span className="research-state">{event.importance}</span></li>)}</ol> : <div className="p-5 sm:p-7"><p className="text-sm leading-relaxed text-[var(--ink-soft)]">No reliable event record was returned for this request.</p></div>}</section>
+              {/* Events */}
+              <section className="research-section border border-[var(--rule)] bg-[var(--surface)] overflow-hidden">
+                <div className="p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="size-4 text-[var(--provenance)]" />
+                    <h3 className="text-sm font-semibold text-[var(--ink)]">Calendar & Key Events</h3>
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--ink-faint)]">Audited dates</span>
+                </div>
+                {brief.events.length ? (
+                  <ol className="divide-y divide-[var(--rule)] text-xs">
+                    {brief.events.map((event, idx) => (
+                      <li key={idx} className="p-3.5 flex items-start justify-between gap-3 hover:bg-[var(--surface-raised)] transition-colors">
+                        <div>
+                          <p className="font-medium text-[var(--ink)]">{event.title}</p>
+                          <p className="mt-0.5 text-[10px] text-[var(--ink-faint)]">{event.source}</p>
+                        </div>
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--ink-soft)] shrink-0">
+                          {event.date}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="p-5 text-center text-xs text-[var(--ink-soft)]">No upcoming events found.</div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
 
-        {hasWarnings ? <details className="research-disclosure mt-8" id="sources"><summary><span><span className="ledger-label">Evidence appendix</span><strong>Sources, freshness, and research notes</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-[.85fr_1.15fr]"><div><p className="ledger-label">Freshness</p><div className="mt-3 space-y-2">{brief.freshness.length ? brief.freshness.map((item) => <div key={item.label} className="flex items-center justify-between gap-3 border-b border-[var(--rule)] py-2 text-xs"><span className="font-semibold text-[var(--ink)]">{item.label}</span><span className="text-right text-[var(--ink-soft)]">{item.state} · {item.asOf}</span></div>) : <p className="text-sm text-[var(--ink-soft)]">No freshness record was returned.</p>}</div></div><div><p className="ledger-label">Source records</p>{brief.sources.length ? <ul className="mt-3 divide-y divide-[var(--rule)]">{brief.sources.map((source, index) => <li key={`${source.source}-${source.dataType}-${index}`} className="flex items-start justify-between gap-4 py-3 text-xs"><div><p className="font-semibold text-[var(--ink)]">{source.source}</p><p className="mt-1 text-[var(--ink-faint)]">{source.dataType} · {source.retrievedAt}</p></div>{source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="research-source-link">Open source <ChevronRight className="size-3" /></a> : null}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--ink-soft)]">No source records were returned.</p>}</div></div>{brief.warnings.length ? <div className="mt-7 border-l-2 border-[var(--negative)] bg-[color-mix(in_oklab,var(--negative)_6%,var(--surface))] px-4 py-3"><p className="ledger-label">Research notes</p><ul className="mt-2 space-y-1 text-xs leading-relaxed text-[var(--ink-soft)]">{brief.warnings.map((warning) => <li key={`${warning.category}-${warning.message}`}>{warning.message}</li>)}</ul></div> : null}</div></details> : null}
+        {/* DESTINATION 2: COMPANY DEEP ANALYSIS */}
+        {activeTab === "company_deep_analysis" && (
+          <div className="space-y-6">
+            <section className="terminal-hero p-5 sm:p-7 border border-[var(--rule)] bg-[var(--surface)]">
+              <div className="research-kicker">
+                <span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Deep Fundamental Dossier
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h1 className="font-serif text-3xl sm:text-4xl text-[var(--ink)] tracking-tight">
+                    {hasResearch ? `${brief.ticker} — Company Deep Analysis` : "Company Deep Analysis"}
+                  </h1>
+                  <p className="mt-1 text-xs sm:text-sm text-[var(--ink-soft)] max-w-2xl">
+                    Audited fundamentals, financial health statement analysis, governance leadership roster, and competitive evidence.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void requestResearch(ticker, "company_deep_analysis")}
+                  disabled={isResearching || isOffline || !hasResearch}
+                  className="research-primary-button flex items-center gap-2"
+                >
+                  {isResearching ? <LoaderCircle className="size-4 animate-spin" /> : <FileSearch className="size-4" />}
+                  <span>{isResearching ? "Loading…" : "Refresh Analysis"}</span>
+                </button>
+              </div>
+            </section>
 
-        <details className="research-disclosure mt-8"><summary><span><span className="ledger-label">Research Desk</span><strong>Ask the finance agent</strong></span><ChevronDown className="size-4" /></summary><div className="border-t border-[var(--rule)] p-5 sm:p-7"><div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_16rem]"><ChatPanel messages={messages} isLoading={isChatting || isResearching} disabled={isOffline} onSend={sendChat} /><aside className="research-activity-rail border-l border-[var(--rule)] pl-5"><p className="ledger-label">Recent activity</p>{researchActivity.length ? <ol className="mt-3 space-y-3">{researchActivity.map((entry) => <li key={entry.id}><p className="text-sm font-semibold text-[var(--ink)]">{entry.query}</p><p className="mt-1 text-xs text-[var(--ink-soft)]">{entry.type} · {entry.status}{entry.confidence ? ` · ${entry.confidence}` : ""}</p></li>)}</ol> : <p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">Research activity appears after a returned request.</p>}</aside></div></div></details>
+            {/* Financial Health Metrics */}
+            <section className="border border-[var(--rule)] bg-[var(--surface)] overflow-hidden">
+              <div className="p-4 border-b border-[var(--rule)] flex items-center justify-between">
+                <div>
+                  <span className="ledger-label">Fundamentals</span>
+                  <h3 className="text-base font-semibold text-[var(--ink)]">Reported Financial Health</h3>
+                </div>
+                {brief.deepAnalysis?.profile.fiscalPeriodEnd && (
+                  <span className="text-xs font-mono text-[var(--ink-faint)]">Fiscal Period: {brief.deepAnalysis.profile.fiscalPeriodEnd}</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 divide-x divide-[var(--rule)]">
+                {compactFinancials.map((metric) => (
+                  <MetricCard key={metric.label} metric={metric} variant="compact" />
+                ))}
+              </div>
+            </section>
+
+            {/* Company Overview & Description */}
+            {brief.deepAnalysis ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="p-5 border border-[var(--rule)] bg-[var(--surface)] space-y-3">
+                  <span className="ledger-label">Company Record</span>
+                  <h4 className="font-serif text-xl font-bold text-[var(--ink)]">Corporate Profile</h4>
+                  <p className="text-xs text-[var(--ink-soft)] leading-relaxed">
+                    {brief.deepAnalysis.profile.description || "No corporate description was returned by the provider."}
+                  </p>
+                  {brief.deepAnalysis.profile.website && (
+                    <a
+                      href={brief.deepAnalysis.profile.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--research-indigo)] font-semibold hover:underline"
+                    >
+                      <span>Corporate Website</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  )}
+                </div>
+
+                <div className="p-5 border border-[var(--rule)] bg-[var(--surface)] space-y-3">
+                  <span className="ledger-label">Corporate Attributes</span>
+                  <h4 className="font-serif text-xl font-bold text-[var(--ink)]">Metadata & Structure</h4>
+                  <dl className="grid grid-cols-2 gap-3 text-xs">
+                    {companySummaryDetails.map((item) => (
+                      <div key={item.label} className="border-b border-[var(--rule)] pb-2">
+                        <dt className="text-[var(--ink-faint)]">{item.label}</dt>
+                        <dd className="font-medium text-[var(--ink)] mt-0.5">{item.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Governance & Competitive Position */}
+            {brief.deepAnalysis ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="p-5 border border-[var(--rule)] bg-[var(--surface)] space-y-3">
+                  <span className="ledger-label">Leadership Roster</span>
+                  <h4 className="font-serif text-lg font-bold text-[var(--ink)]">Governance & Executive Leadership</h4>
+                  <p className="text-xs font-semibold text-[var(--ink)]">CEO: {brief.deepAnalysis.governance.ceo || "—"}</p>
+                  {brief.deepAnalysis.governance.leadership.length ? (
+                    <ul className="mt-2 space-y-1 text-xs text-[var(--ink-soft)]">
+                      {brief.deepAnalysis.governance.leadership.map((person) => (
+                        <li key={person} className="flex gap-2 items-center">
+                          <span className="size-1 rounded-full bg-[var(--research-indigo)]" />
+                          <span>{person}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-[var(--ink-faint)]">No additional leadership records returned.</p>
+                  )}
+                </div>
+
+                <div className="p-5 border border-[var(--rule)] bg-[var(--surface)] space-y-3">
+                  <span className="ledger-label">Industry Positioning</span>
+                  <h4 className="font-serif text-lg font-bold text-[var(--ink)]">Competitive Evidence</h4>
+                  <p className="text-xs text-[var(--ink-soft)] leading-relaxed">
+                    {brief.deepAnalysis.competitors.note || "No specific competitive commentary was returned."}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Research Brief Markdown Synthesis */}
+            <div className="border border-[var(--rule)] bg-[var(--surface)] p-5">
+              <AnalysisPanel analysis={brief.analysis} ticker={ticker} isLoading={isResearching} unavailableNotice={brief.aiInterpretationNotice} />
+            </div>
+          </div>
+        )}
+
+        {/* DESTINATION 3: COMPANY COMPARISON */}
+        {activeTab === "company_comparison" && (
+          <CompanyComparison initialCompanyA={ticker} initialCompanyB="MSFT" />
+        )}
+
+        {/* DESTINATION 4: AI RESEARCH DESK */}
+        {activeTab === "ai_research" && (
+          <div className="space-y-6">
+            <section className="terminal-hero p-5 sm:p-7 border border-[var(--rule)] bg-[var(--surface)]">
+              <div className="research-kicker">
+                <span className="size-1.5 rounded-full bg-[var(--provenance)]" /> Autonomous Finance Desk
+              </div>
+              <h1 className="font-serif text-3xl sm:text-4xl text-[var(--ink)] tracking-tight mt-2">
+                AI Financial Research Desk
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-[var(--ink-soft)] max-w-2xl">
+                Dedicated research conversation context with access to real-time market data, company filings, and quantitative indicators.
+              </p>
+            </section>
+
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+              <div className="border border-[var(--rule)] bg-[var(--surface)] p-5">
+                <ChatPanel messages={messages} isLoading={isChatting || isResearching} disabled={isOffline} onSend={sendChat} />
+              </div>
+              <aside className="border border-[var(--rule)] bg-[var(--surface)] p-4 space-y-4">
+                <div>
+                  <span className="ledger-label">Research Session</span>
+                  <h4 className="text-xs font-semibold text-[var(--ink)] mt-1">Active Context</h4>
+                  <p className="text-xs text-[var(--ink-soft)] mt-0.5">Ticker: <span className="font-mono font-bold text-[var(--research-indigo)]">{ticker}</span></p>
+                </div>
+                <div className="border-t border-[var(--rule)] pt-3">
+                  <span className="ledger-label">Recent Activity</span>
+                  {researchActivity.length ? (
+                    <ol className="mt-2 space-y-2 text-xs">
+                      {researchActivity.map((entry) => (
+                        <li key={entry.id} className="p-2 rounded bg-[var(--surface-subtle)] border border-[var(--rule)]">
+                          <p className="font-semibold text-[var(--ink)]">{entry.query}</p>
+                          <p className="text-[10px] text-[var(--ink-soft)] mt-0.5">{entry.type} · {entry.status}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-xs text-[var(--ink-faint)] mt-2">No activity recorded yet.</p>
+                  )}
+                </div>
+              </aside>
+            </div>
+          </div>
+        )}
       </main>
 
-      <footer className="mx-auto mt-10 flex max-w-6xl flex-col justify-between gap-2 border-t border-[var(--rule)] px-4 py-5 text-[11px] text-[var(--ink-faint)] sm:flex-row sm:px-6 lg:px-8"><p>QuantAI separates sourced research evidence from optional interpretation.</p><p className="font-mono">{connection === "ready" ? connectionNote : "Research endpoint requires attention"}</p></footer>
+      {/* Footer */}
+      <footer className="border-t border-[var(--rule)] bg-[var(--surface)] py-4 px-4 sm:px-6 lg:px-10 text-[11px] text-[var(--ink-faint)] flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p>QuantAI separates verified deterministic research data from optional AI interpretation.</p>
+        <p className="font-mono">{connection === "ready" ? connectionNote : "Research endpoint offline"}</p>
+      </footer>
 
-      {settingsOpen ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Research endpoint settings"><div className="w-full max-w-md bg-[var(--surface)] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="ledger-label">Connection settings</p><h2 className="mt-1 font-serif text-2xl tracking-[-0.04em] text-[var(--ink)]">Research Desk endpoint</h2></div><button type="button" onClick={() => setSettingsOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close settings"><X className="size-5" /></button></div><p className="mt-3 text-sm leading-relaxed text-[var(--ink-soft)]">Production uses the same-origin <code className="research-code">/api</code> route. Local Vite development proxies this route to the local backend.</p><label className="mt-5 block"><span className="ledger-label">Base URL</span><input value={endpointDraft} onChange={(event) => setEndpointDraft(event.target.value)} className="research-input mt-2" /></label><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setSettingsOpen(false)} className="research-text-button">Cancel</button><button type="button" onClick={saveEndpoint} className="research-primary-button">Save and test</button></div></div></div> : null}
+      {/* Settings Modal */}
+      {settingsOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Research endpoint settings">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--rule)] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="ledger-label">Connection Settings</p>
+                <h2 className="mt-1 font-serif text-xl font-bold text-[var(--ink)]">Research Desk Endpoint</h2>
+              </div>
+              <button type="button" onClick={() => setSettingsOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close settings">
+                <X className="size-5" />
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-[var(--ink-soft)] leading-relaxed">
+              Default same-origin <code className="px-1 py-0.5 rounded bg-[var(--surface-subtle)] font-mono text-[10px]">/api</code> route proxies to the local Python backend.
+            </p>
+            <label className="mt-4 block">
+              <span className="ledger-label">Backend API URL</span>
+              <input value={endpointDraft} onChange={(e) => setEndpointDraft(e.target.value)} className="mt-1.5 w-full border border-[var(--rule-strong)] bg-[var(--surface-raised)] px-3 py-2 text-xs text-[var(--ink)] font-mono outline-none focus:border-[var(--research-indigo)]" />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSettingsOpen(false)} className="research-text-button text-xs">Cancel</button>
+              <button type="button" onClick={saveEndpoint} className="research-primary-button text-xs px-4 py-2">Save & Test</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -175,7 +175,7 @@ async function readJson(response: Response) {
   }
 }
 
-export async function runTypedResearch(query: string, includeAnalysis = true, apiUrl = getAgentosUrl(), mode: "standard" | "market_intelligence" | "company_deep_analysis" = "standard", signal?: AbortSignal): Promise<TypedResearchResponse> {
+export async function runTypedResearch(query: string, includeAnalysis = true, apiUrl = getAgentosUrl(), mode: "standard" | "market_intelligence" | "company_deep_analysis" | "company_comparison" = "standard", signal?: AbortSignal): Promise<TypedResearchResponse> {
   const response = await fetch(`${apiUrl}/research`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -189,3 +189,30 @@ export async function runTypedResearch(query: string, includeAnalysis = true, ap
   }
   return body as TypedResearchResponse;
 }
+
+export async function runCompanyComparison(
+  companyA: string,
+  companyB: string,
+  includeAnalysis = true,
+  apiUrl = getAgentosUrl(),
+  signal?: AbortSignal
+): Promise<TypedResearchResponse> {
+  const response = await fetch(`${apiUrl}/research`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      mode: "company_comparison",
+      company_a: companyA.trim(),
+      company_b: companyB.trim(),
+      include_analysis: includeAnalysis,
+    }),
+    signal,
+  });
+  const body = (await readJson(response)) as TypedResearchResponse | TypedResearchError;
+  if (!response.ok) {
+    const error = body as TypedResearchError;
+    throw new Error(error.message || "Company comparison is temporarily unavailable. Please try again shortly.");
+  }
+  return body as TypedResearchResponse;
+}
+
