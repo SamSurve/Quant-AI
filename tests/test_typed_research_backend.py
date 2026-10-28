@@ -7,6 +7,7 @@ All external data and AI services are replaced with deterministic fakes.
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 import json
 import sys
 from pathlib import Path
@@ -376,9 +377,10 @@ async def verify_market_and_news_adapters() -> None:
 
         def news(self, _query: str, max_results: int):
             assert max_results == 8
+            recent_date = (datetime.now(UTC) - timedelta(days=2)).isoformat().replace("+00:00", "Z")
             return [
-                {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": "2026-08-24T00:00:00Z", "body": "Summary"},
-                {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": "2026-08-24T00:00:00Z", "body": "Duplicate"},
+                {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": recent_date, "body": "Summary"},
+                {"title": "Apple update", "url": "https://example.test/a", "source": "Example", "date": recent_date, "body": "Duplicate"},
                 {"title": "Old item", "url": "https://example.test/old", "source": "Example", "date": "2020-01-01T00:00:00Z", "body": "Old"},
                 {"title": "Relative item", "url": "https://example.test/relative", "source": "Example", "date": "Opinion1 day ago", "body": "Relative"},
                 {"title": "Old relative item", "url": "https://example.test/old-relative", "source": "Example", "date": "Opinion45 days ago", "body": "Old relative"},

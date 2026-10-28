@@ -65,6 +65,51 @@ Comparison winners are only emitted when both values are available and safe to c
 
 The Vercel MVP uses a small process-local TTL cache and in-flight request deduplication. This improves repeated requests within a warm function instance but is not a shared multi-instance cache. The route also applies a 8 KiB request-body limit, a 10-request-per-minute anonymous warm-instance limit, and a four-request warm-instance concurrency guard. These are pragmatic safeguards, not a substitute for a managed shared rate-limit/cache service.
 
+## Primary Destinations & UI Architecture
+
+The QuantAI frontend is organized into three primary analytical destinations and a dedicated AI Research Desk:
+
+1. **Market Intelligence**: Real-time quotes, multi-period price charts (1D to 5Y), technical signal scores, news, and key events.
+2. **Company Deep Analysis**: Audited financial statements, corporate governance leadership rosters, balance sheet indicators, and company profile metadata.
+3. **Company Comparison**: Side-by-side fundamental comparisons with automatic currency conversion labels, period-alignment badges, detailed metric matrix, and deterministic strength/momentum scorecards.
+4. **AI Research Desk**: Integrated research workspace connecting to AgentOS finance agents with real-time session activity logs.
+
+## Verification & Testing
+
+To validate the frontend build and full regression suite:
+
+```bash
+# Frontend type check & production build
+pnpm run check
+pnpm run build
+
+# Backend regression suites
+python tests/test_provider_failover.py
+python tests/test_typed_research_backend.py
+python tests/test_market_intelligence.py
+python tests/test_company_deep_analysis.py
+python tests/test_company_comparison.py
+python -c "import api.index; print('API_IMPORT=PASS')"
+python tests/test_production_readiness.py
+
+# Milestone Coordinator test suite
+python -m unittest tools/coordinator/test_coordinator.py
+```
+
+## Milestone Coordinator Architecture
+
+The autonomous coordination workflow is managed via `tools/coordinator/`:
+- **State Machine**: Enforces the 10-milestone roadmap (`M01` through `M10`), bounded 3-attempt retries, and atomic state updates.
+- **Decision Engine**: Recognizes `PASS_NEXT_MILESTONE`, `RETRY_CURRENT_MILESTONE`, `HUMAN_APPROVAL_REQUIRED`, `BLOCKED`, and `PROJECT_COMPLETE`.
+- **Safety Gates**: Enforces hard stops before production deployments, credential rotations, or force pushes.
+- **Deduplication**: SHA-256 persistent hashing prevents duplicate execution or double-advancement.
+
+## Release & Deployment Status
+
+- **Vercel API Routing**: `vercel.json` routes `/api/**/*` serverless calls to Python functions and rewrites client paths to `/index.html`.
+- **Deployment Protection**: Previews on `quant-ai-samsurves-projects.vercel.app` enforce Vercel SSO authentication.
+- **Provider Fallback**: In environments without Groq or OpenRouter API keys, the system gracefully falls back to deterministic Yahoo Finance data without throwing unhandled exceptions.
+
 ## Vercel
 
 Read [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for the exact environment variables, GitHub import workflow, Vercel project settings, preview checks, and deployment validation steps.
