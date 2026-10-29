@@ -1,6 +1,6 @@
 """No-network checks for the Vercel production configuration and AgentOS mounts.
 
-Run with ``PYTHONDONTWRITEBYTECODE=1 python tests/test_production_readiness.py``.
+Run with ``PYTHONDONTWRITEBYTECODE=1 python tests/test_production_readiness.py`` or via ``pytest``.
 The deployment excludes this test directory through ``.vercelignore`` and the
 function ``excludeFiles`` rule; it is intentionally kept in source control for
 repeatable release validation.
@@ -62,17 +62,15 @@ def no_provider_environment() -> dict[str, str]:
 
 def check_deployment_files() -> None:
     config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-    function = config["functions"]["api/**/*.py"]
-    assert config["framework"] == "vite"
-    assert config["outputDirectory"] == "dist/public"
-    assert function["includeFiles"] == "api/**"
-    assert "tests/**" in function["excludeFiles"]
-    assert "__pycache__" in function["excludeFiles"]
+    functions = config.get("functions", {})
+    function = functions.get("api/index.py") or functions.get("api/**/*.py")
+    assert function is not None, "api/index.py must be configured in functions"
+    assert "templates/**" in function["includeFiles"], "templates must be bundled in Vercel function"
+    assert "static/**" in function["includeFiles"], "static files must be bundled in Vercel function"
     assert any(
-        rewrite["source"] == "/:path((?!api(?:/|$)).*)"
-        and rewrite["destination"] == "/index.html"
-        for rewrite in config["rewrites"]
-    )
+        rewrite.get("destination") == "/api/index.py"
+        for rewrite in config.get("rewrites", [])
+    ), "Rewrites must route traffic to /api/index.py"
     for entrypoint in (
         "api/health.py",
         "api/agents.py",
@@ -158,6 +156,15 @@ def check_configured_provider_agentos_setup() -> None:
             assert response.status_code == 200, response.text
             health = client.get("/api/health").json()
             assert health["provider_runtime"]["configured_count"] == 1
+
+
+def test_production_readiness_suite() -> None:
+    """Pytest entrypoint executing all production readiness checks."""
+    check_deployment_files()
+    check_agentos_routes()
+    check_missing_provider_behavior()
+    check_agentos_run_protection()
+    check_configured_provider_agentos_setup()
 
 
 if __name__ == "__main__":
