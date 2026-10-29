@@ -150,4 +150,4 @@ The repository is configured for direct deployment on Vercel using the Python ru
   - `OPENROUTER_API_KEY` (optional)
   - `AI_PROVIDER_ORDER` (optional)
 
-*Legacy Vite/React artifacts in `client/` are preserved for parity verification prior to final deprecation.*
+*Obsolete legacy Vite/React artifacts have been completely retired; the application operates 100% as a pure Python-first system.*
