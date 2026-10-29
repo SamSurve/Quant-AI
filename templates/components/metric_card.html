@@ -1,0 +1,22 @@
+{# Reusable Financial Metric Card #}
+<div class="metric-card {% if card_class %}{{ card_class }}{% endif %}">
+  <div class="metric-card-header">
+    <span class="metric-label">{{ label }}</span>
+    {% if badge %}
+      <span class="badge badge-{{ badge_type|default('neutral') }}">{{ badge }}</span>
+    {% endif %}
+  </div>
+  <div class="metric-value font-mono">{{ value }}</div>
+  {% if change or subtext %}
+    <div class="metric-footer">
+      {% if change %}
+        <span class="metric-change {% if change_positive %}change-positive{% elif change_negative %}change-negative{% else %}change-neutral{% endif %} font-mono">
+          {% if change_positive %}▲{% elif change_negative %}▼{% endif %} {{ change }}
+        </span>
+      {% endif %}
+      {% if subtext %}
+        <span class="metric-subtext">{{ subtext }}</span>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>

@@ -83,6 +83,33 @@ class TestWebFoundation(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn(b"Rendering Error", response.body)
 
+    def test_design_system_components_rendered(self):
+        """Landing page must render M03 design system components: metric cards, badges, and table."""
+        response = self.client.get("/", headers={"Accept": "text/html"})
+        self.assertEqual(response.status_code, 200)
+        text = response.text
+        self.assertIn("metric-card", text)
+        self.assertIn("badge", text)
+        self.assertIn("data-table", text)
+        self.assertIn("S&amp;P 500 (SPY)", text)
+        self.assertIn("Apple Inc.", text)
+        self.assertIn("numeric", text)
+
+    def test_css_design_system_tokens(self):
+        """CSS stylesheet must define core design tokens and responsive rules."""
+        response = self.client.get("/static/css/main.css")
+        self.assertEqual(response.status_code, 200)
+        css = response.text
+        self.assertIn("--font-mono", css)
+        self.assertIn("--font-sans", css)
+        self.assertIn("--space-base", css)
+        self.assertIn("--radius-md", css)
+        self.assertIn('[data-theme="dark"]', css)
+        self.assertIn('[data-theme="light"]', css)
+        self.assertIn(":focus-visible", css)
+        self.assertIn("@media (max-width: 768px)", css)
+        self.assertIn("@media (max-width: 375px)", css)
+
 
 if __name__ == "__main__":
     unittest.main()

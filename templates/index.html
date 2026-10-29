@@ -5,99 +5,138 @@
 {% block content %}
 <div class="landing-hero">
   <div class="hero-header">
-    <div class="hero-badge">Architecture Transition</div>
+    <div class="hero-badge">Architecture Transition · M03</div>
     <h1 class="hero-title">Python-First Financial Research Terminal</h1>
     <p class="hero-subtitle">
       A fast, resilient, evidence-grounded research platform powered by FastAPI, Jinja2, and external financial intelligence services.
     </p>
   </div>
 
-  <div class="runtime-status-grid">
-    <div class="status-card">
-      <div class="status-card-header">
-        <span class="status-card-label">Runtime Engine</span>
-        <span class="status-pill status-healthy"><span class="status-dot"></span> Active</span>
-      </div>
-      <div class="status-card-value">FastAPI + Uvicorn</div>
-      <div class="status-card-desc">Asynchronous, typed Python backend with sub-millisecond route dispatch.</div>
-    </div>
+  {# Live Market Snapshot / Metric Cards Grid #}
+  <div class="grid grid-4" id="overview-metrics">
+    {% with label="S&P 500 (SPY)", value="584.20", change="+0.42%", change_positive=True, subtext="Live Market Quote" %}
+      {% include "components/metric_card.html" %}
+    {% endwith %}
 
-    <div class="status-card">
-      <div class="status-card-header">
-        <span class="status-card-label">Templating System</span>
-        <span class="status-pill status-healthy"><span class="status-dot"></span> Ready</span>
-      </div>
-      <div class="status-card-value">Jinja2 Server Rendering</div>
-      <div class="status-card-desc">Zero JavaScript build required for layout and static document delivery.</div>
-    </div>
+    {% with label="Nasdaq (QQQ)", value="498.75", change="+0.88%", change_positive=True, subtext="Tech Momentum" %}
+      {% include "components/metric_card.html" %}
+    {% endwith %}
 
-    <div class="status-card">
-      <div class="status-card-header">
-        <span class="status-card-label">API Compatibility</span>
-        <span class="status-pill status-healthy"><span class="status-dot"></span> 100% Intact</span>
-      </div>
-      <div class="status-card-value">/api/health · /api/research</div>
-      <div class="status-card-desc">Preserving all existing external research services and AgentOS contracts.</div>
-    </div>
+    {% with label="10-Year Yield", value="4.24%", change="-0.03%", change_negative=True, subtext="US Benchmark" %}
+      {% include "components/metric_card.html" %}
+    {% endwith %}
 
-    <div class="status-card">
-      <div class="status-card-header">
-        <span class="status-card-label">Milestone Target</span>
-        <span class="status-pill status-info">M02 / M15</span>
-      </div>
-      <div class="status-card-value">Application Foundation</div>
-      <div class="status-card-desc">Foundation verified; ready for design system tokens and HTMX search.</div>
-    </div>
+    {% with label="Python UI Engine", value="FastAPI + Jinja2", subtext="Zero Node Build Needed", badge="Active", badge_type="positive" %}
+      {% include "components/metric_card.html" %}
+    {% endwith %}
   </div>
 
+  {# Core Research Workspaces #}
   <section class="destinations-section">
     <div class="section-header">
       <h2 class="section-title">Core Research Workspaces</h2>
-      <span class="section-tag">4 Destinations</span>
+      <span class="section-tag">4 Primary Destinations</span>
     </div>
 
-    <div class="destinations-grid">
-      <div class="dest-card" id="dest-market">
+    <div class="grid grid-4">
+      <a href="/market" class="dest-card" id="dest-market">
         <div class="dest-icon">📈</div>
         <h3 class="dest-title">Market Intelligence</h3>
         <p class="dest-desc">Live quotes, historical candlestick charts, technical indicators, and contextual news streams.</p>
         <div class="dest-meta">
-          <span class="dest-tag">Quotes</span>
-          <span class="dest-tag">Charts</span>
-          <span class="dest-tag">Signals</span>
+          <span class="badge badge-neutral">Quotes</span>
+          <span class="badge badge-neutral">Charts</span>
+          <span class="badge badge-neutral">Signals</span>
         </div>
-      </div>
+      </a>
 
-      <div class="dest-card" id="dest-analysis">
+      <a href="/analysis" class="dest-card" id="dest-analysis">
         <div class="dest-icon">📊</div>
         <h3 class="dest-title">Company Deep Analysis</h3>
         <p class="dest-desc">Comprehensive income statements, balance sheets, cash flows, valuation models, and governance data.</p>
         <div class="dest-meta">
-          <span class="dest-tag">Financials</span>
-          <span class="dest-tag">Valuation</span>
-          <span class="dest-tag">Health</span>
+          <span class="badge badge-neutral">Financials</span>
+          <span class="badge badge-neutral">Valuation</span>
+          <span class="badge badge-neutral">Health</span>
         </div>
-      </div>
+      </a>
 
-      <div class="dest-card" id="dest-comparison">
+      <a href="/compare" class="dest-card" id="dest-compare">
         <div class="dest-icon">⚖</div>
         <h3 class="dest-title">Company Comparison</h3>
         <p class="dest-desc">Normalized side-by-side metric comparison, aligned reporting periods, and transparent uncertainty.</p>
         <div class="dest-meta">
-          <span class="dest-tag">Peer Alignment</span>
-          <span class="dest-tag">FX Normalized</span>
+          <span class="badge badge-neutral">Peer Alignment</span>
+          <span class="badge badge-neutral">FX Normalized</span>
         </div>
-      </div>
+      </a>
 
-      <div class="dest-card" id="dest-research">
+      <a href="/research" class="dest-card" id="dest-research">
         <div class="dest-icon">⚡</div>
         <h3 class="dest-title">AI Research Desk</h3>
         <p class="dest-desc">Dedicated research desk with structured output, verifiable evidence citations, and failover resilience.</p>
         <div class="dest-meta">
-          <span class="dest-tag">Multi-Provider</span>
-          <span class="dest-tag">Evidence-Backed</span>
+          <span class="badge badge-neutral">Multi-Provider</span>
+          <span class="badge badge-neutral">Evidence-Backed</span>
         </div>
-      </div>
+      </a>
+    </div>
+  </section>
+
+  {# Sample Financial Tabular Component Showcase #}
+  <section class="destinations-section">
+    <div class="section-header">
+      <h2 class="section-title">Terminal Data Table Component</h2>
+      <span class="section-tag">Tabular Numerals & Numeric Alignment</span>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table" aria-label="Sample Watchlist Table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th class="numeric">Price (USD)</th>
+            <th class="numeric">Change</th>
+            <th class="numeric">Market Cap</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-mono"><strong>AAPL</strong></td>
+            <td>Apple Inc.</td>
+            <td class="numeric font-mono">$231.40</td>
+            <td class="numeric font-mono change-positive">▲ +1.15%</td>
+            <td class="numeric font-mono">$3.52T</td>
+            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+          </tr>
+          <tr>
+            <td class="font-mono"><strong>MSFT</strong></td>
+            <td>Microsoft Corporation</td>
+            <td class="numeric font-mono">$428.15</td>
+            <td class="numeric font-mono change-positive">▲ +0.64%</td>
+            <td class="numeric font-mono">$3.18T</td>
+            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+          </tr>
+          <tr>
+            <td class="font-mono"><strong>GOOGL</strong></td>
+            <td>Alphabet Inc.</td>
+            <td class="numeric font-mono">$167.30</td>
+            <td class="numeric font-mono change-negative">▼ -0.45%</td>
+            <td class="numeric font-mono">$2.07T</td>
+            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+          </tr>
+          <tr>
+            <td class="font-mono"><strong>NVDA</strong></td>
+            <td>NVIDIA Corporation</td>
+            <td class="numeric font-mono">$138.25</td>
+            <td class="numeric font-mono change-positive">▲ +2.10%</td>
+            <td class="numeric font-mono">$3.39T</td>
+            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </div>
