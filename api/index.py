@@ -95,6 +95,9 @@ async def request_context_and_body_limit(request: Request, call_next: Any) -> JS
     else:
         response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
+    response.headers["X-Debug-Path"] = str(request.url.path)
+    response.headers["X-Debug-Scope-Path"] = str(request.scope.get("path"))
+    response.headers["X-Debug-Root-Path"] = str(request.scope.get("root_path"))
     return response
 
 
