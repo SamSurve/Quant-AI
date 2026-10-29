@@ -134,6 +134,17 @@ async def unhandled_error_handler(request: Request, error: Exception) -> JSONRes
     return _error_response(request, ResearchError(ErrorCategory.INTERNAL_ERROR, detail=type(error).__name__))
 
 
+@app.get("/api/index.py", include_in_schema=False)
+@app.get("/api/index", include_in_schema=False)
+def vercel_debug_info(request: Request):
+    return {
+        "url": str(request.url),
+        "path": request.url.path,
+        "scope_path": request.scope.get("path"),
+        "headers": dict(request.headers),
+    }
+
+
 def health_payload() -> dict[str, Any]:
     """Return a no-secret readiness response without invoking Groq."""
     return {
