@@ -13,24 +13,49 @@ from api.market_intelligence_services import (
     PriceHistoryService,
     EventRadarService,
     normalize_symbol,
+    slice_history,
     _call_with_retry,
 )
 from api.research_schemas import (
     CompanyIdentity,
+    FreshnessRecord,
     FreshnessState,
     ServiceState,
     ErrorCategory,
     IdentifierConfidence,
+    PriceHistoryBundle,
+    HistoryPoint,
+    HistoryPeriod,
 )
 
 
 class TestMarketBackendHardening(unittest.TestCase):
     def test_symbol_normalization(self):
-        """Symbol normalization must uppercase, strip whitespace, and clamp length."""
+        """Symbol normalization must uppercase, strip whitespace, and preserve valid ticker formats."""
         self.assertEqual(normalize_symbol("  aapl  "), "AAPL")
         self.assertEqual(normalize_symbol("spy"), "SPY")
         self.assertEqual(normalize_symbol("brk.b"), "BRK.B")
+        self.assertEqual(normalize_symbol("brk-a"), "BRK-A")
         self.assertEqual(normalize_symbol("tmpv.ns"), "TMPV.NS")
+        self.assertEqual(normalize_symbol("^gspc"), "^GSPC")
+        self.assertEqual(normalize_symbol("gc=f"), "GC=F")
+
+    def test_symbol_rejection_invalid_inputs(self):
+        """Symbol validation must strictly reject empty, malformed, or out-of-spec tickers with ValueError."""
+        invalid_inputs = [
+            "",
+            "   ",
+            "AAPL<script>",
+            "AAPL;DROP TABLE",
+            "AAPL SPY",
+            "TOOLONGSYMBOLNAME123",
+            "AAPL$",
+            "AAPL#1",
+        ]
+        for bad_input in invalid_inputs:
+            with self.subTest(bad_input=bad_input):
+                with self.assertRaises(ValueError):
+                    normalize_symbol(bad_input)
 
     def test_call_with_retry_succeeds_first_try(self):
         """Clean call succeeds without retry."""
@@ -126,6 +151,51 @@ class TestMarketBackendHardening(unittest.TestCase):
                 self.assertIsNotNone(result.warning)
 
         asyncio.run(run_test())
+
+
+    def test_market_pulse_invalid_symbol_validation_error(self):
+        """Invalid symbol should immediately return VALIDATION_ERROR without making provider calls."""
+        async def run_test():
+            service = MarketPulseService()
+            entity = CompanyIdentity(symbol="BAD;SYMBOL", identifier_confidence=IdentifierConfidence.HIGH)
+
+            result, freshness = await service.fetch(entity)
+            self.assertEqual(result.status, ServiceState.UNAVAILABLE)
+            self.assertIsNotNone(result.warning)
+            self.assertEqual(result.warning.category, ErrorCategory.VALIDATION_ERROR)
+            self.assertEqual(freshness.state, FreshnessState.UNAVAILABLE)
+
+        asyncio.run(run_test())
+
+    def test_slice_history_periods(self):
+        """slice_history must correctly slice intraday or daily points according to period requested."""
+        points = [
+            HistoryPoint(timestamp=f"2025-01-{i:02d}", close=100.0 + i)
+            for i in range(1, 100)
+        ]
+        bundle = PriceHistoryBundle(
+            daily=points,
+            intraday=[HistoryPoint(timestamp="2025-01-30T10:00:00Z", close=199.0)],
+            freshness=FreshnessRecord(state=FreshnessState.LIVE),
+        )
+
+        # 1D should return intraday
+        sliced_1d = slice_history(bundle, "1D")
+        self.assertEqual(len(sliced_1d), 1)
+        self.assertEqual(sliced_1d[0].close, 199.0)
+
+        # 1W should return last 5 daily points
+        sliced_1w = slice_history(bundle, "1W")
+        self.assertEqual(len(sliced_1w), 5)
+        self.assertEqual(sliced_1w[-1].close, points[-1].close)
+
+        # 1M should return last 22 daily points
+        sliced_1m = slice_history(bundle, HistoryPeriod.ONE_MONTH)
+        self.assertEqual(len(sliced_1m), 22)
+
+        # 5Y should return all available daily points
+        sliced_5y = slice_history(bundle, "5Y")
+        self.assertEqual(len(sliced_5y), len(points))
 
 
 if __name__ == "__main__":

@@ -1204,3 +1204,334 @@ body {
   margin-top: var(--space-xs);
   font-size: 0.75rem;
 }
+
+/* --------------------------------------------------------------------------
+   M06 Market Intelligence Dashboard & Visual Telemetry
+   -------------------------------------------------------------------------- */
+.symbol-quote-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.quote-price-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.quote-price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-feature-settings: "tnum" 1;
+  color: var(--text-primary);
+}
+
+.quote-delta {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+}
+
+.quote-sub-meta {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.market-status-pill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.market-metrics-grid {
+  margin-top: var(--space-md);
+}
+
+/* Chart Panel & Horizons */
+.chart-panel {
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.chart-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.chart-title-area {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-md);
+}
+
+.chart-period-stats {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.chart-period-selector {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.period-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.period-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.period-btn.active {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.chart-svg-wrapper {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  padding: var(--space-xs) 0;
+}
+
+.market-chart-svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  display: block;
+}
+
+.chart-gridline {
+  stroke: var(--border-subtle);
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+}
+
+.chart-axis-text {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.chart-line-path {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.chart-meta-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chart-range-summary {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.chart-unavailable-box,
+.events-empty-box,
+.events-unavailable-box,
+.signal-unavailable-box {
+  padding: var(--space-xl);
+  text-align: center;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* Lower Analysis Grid: Signal & Events */
+.market-analysis-grid {
+  margin-top: var(--space-md);
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+@media (max-width: 768px) {
+  .market-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.signal-panel,
+.events-panel {
+  padding: var(--space-md);
+}
+
+.signal-score-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 var(--space-md) 0;
+}
+
+.signal-score-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.score-number {
+  font-size: 2.25rem;
+  font-weight: 700;
+  font-feature-settings: "tnum" 1;
+  color: var(--text-primary);
+}
+
+.signal-meter-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.signal-meter-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.fill-positive {
+  background-color: var(--color-positive);
+}
+
+.fill-negative {
+  background-color: var(--color-negative);
+}
+
+.fill-neutral {
+  background-color: var(--color-warning);
+}
+
+.signal-factors-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-xs) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signal-factor-item {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: flex-start;
+  color: var(--text-secondary);
+}
+
+.factor-bullet {
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.signal-methodology-note,
+.events-footer {
+  margin-top: var(--space-md);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Corporate Event Radar */
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0;
+}
+
+.event-item {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 8px 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  align-items: center;
+}
+
+.event-date-col {
+  min-width: 90px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.event-detail-col {
+  flex: 1;
+}
+
+.event-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.event-title {
+  font-weight: 600;
+  font-size: 0.84375rem;
+  color: var(--text-primary);
+}
+
+/* Validation & Unavailable Alerts */
+.validation-error-card,
+.unavailable-alert-card {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  margin-top: var(--space-md);
+  border-left: 4px solid var(--color-negative);
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+}
+
+.alert-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.alert-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-xs);
+}
+

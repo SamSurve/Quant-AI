@@ -73,11 +73,54 @@ def unavailable_freshness() -> FreshnessRecord:
 
 
 def normalize_symbol(symbol: str) -> str:
-    """Normalize and validate ticker symbol format."""
+    """Normalize and validate ticker symbol format.
+
+    Rejects invalid characters, spaces inside, and empty input where a symbol is required.
+    Enforces the symbol length limit (1 to 16 characters).
+    Preserves legitimate symbols including exchange suffixes (.NS, .BO, .HK, .L),
+    index carets (^GSPC, ^IXIC), futures/currency signs (GC=F, EURUSD=X), and share classes (BRK.B, BRK-A).
+
+    Raises:
+        ValueError: If symbol is empty, exceeds 16 chars, or contains invalid characters.
+    """
+    if not symbol or not isinstance(symbol, str):
+        raise ValueError("Ticker symbol cannot be empty.")
     clean = symbol.strip().upper()
-    if not re.fullmatch(r"[A-Z0-9.\-=^]{1,16}", clean):
-        return clean[:16]
+    if not clean:
+        raise ValueError("Ticker symbol cannot be empty.")
+    if len(clean) > 16:
+        raise ValueError(f"Ticker symbol exceeds 16 characters: {clean[:20]}...")
+    if not re.fullmatch(r"^[A-Z0-9.\-=^]{1,16}$", clean):
+        raise ValueError(f"Invalid ticker symbol format: {clean!r}")
     return clean
+
+
+def slice_history(bundle: PriceHistoryBundle, period: str | HistoryPeriod) -> list[HistoryPoint]:
+    """Slice price history bundle points to the requested time horizon."""
+    if isinstance(period, str):
+        period_str = period.upper()
+    else:
+        period_str = period.value
+
+    if period_str in ("1D", HistoryPeriod.ONE_DAY.value):
+        if bundle.intraday:
+            return bundle.intraday
+        return bundle.daily[-1:] if bundle.daily else []
+
+    daily = bundle.daily or []
+    if not daily:
+        return []
+
+    PERIOD_LIMITS: dict[str, int] = {
+        "1W": 5,
+        "1M": 22,
+        "3M": 65,
+        "6M": 130,
+        "1Y": 252,
+        "5Y": len(daily),
+    }
+    limit = PERIOD_LIMITS.get(period_str, 22)
+    return daily[-limit:]
 
 
 async def _call_with_retry(
@@ -150,7 +193,18 @@ class MarketPulseService:
         self._cache = cache or AsyncTTLCache()
 
     async def fetch(self, entity: CompanyIdentity) -> tuple[MarketPulseResult, FreshnessRecord]:
-        sym = normalize_symbol(entity.symbol)
+        try:
+            sym = normalize_symbol(entity.symbol)
+        except ValueError as err:
+            now = utc_stamp()
+            return MarketPulseResult(
+                entity,
+                None,
+                ServiceState.UNAVAILABLE,
+                ResearchError(ErrorCategory.VALIDATION_ERROR, detail=str(err), retryable=False),
+                None,
+                now,
+            ), unavailable_freshness()
         result, cache_hit = await self._cache.get_or_load(
             f"market-pulse:{sym}",
             MARKET_PULSE_TTL_SECONDS,
@@ -244,7 +298,17 @@ class PriceHistoryService:
         self._cache = cache or AsyncTTLCache()
 
     async def fetch(self, entity: CompanyIdentity) -> tuple[HistoryResult, FreshnessRecord]:
-        sym = normalize_symbol(entity.symbol)
+        try:
+            sym = normalize_symbol(entity.symbol)
+        except ValueError as err:
+            now = utc_stamp()
+            return HistoryResult(
+                None,
+                ServiceState.UNAVAILABLE,
+                ResearchError(ErrorCategory.VALIDATION_ERROR, detail=str(err), retryable=False),
+                None,
+                now,
+            ), unavailable_freshness()
         result, cache_hit = await self._cache.get_or_load(
             f"market-history:{sym}",
             HISTORY_TTL_SECONDS,
@@ -301,7 +365,17 @@ class EventRadarService:
         self._cache = cache or AsyncTTLCache()
 
     async def fetch(self, entity: CompanyIdentity) -> tuple[EventRadarResult, FreshnessRecord]:
-        sym = normalize_symbol(entity.symbol)
+        try:
+            sym = normalize_symbol(entity.symbol)
+        except ValueError as err:
+            now = utc_stamp()
+            return EventRadarResult(
+                [],
+                ServiceState.UNAVAILABLE,
+                ResearchError(ErrorCategory.VALIDATION_ERROR, detail=str(err), retryable=False),
+                None,
+                now,
+            ), unavailable_freshness()
         result, cache_hit = await self._cache.get_or_load(
             f"event-radar:{sym}",
             EVENTS_TTL_SECONDS,

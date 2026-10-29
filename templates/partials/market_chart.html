@@ -1,0 +1,138 @@
+{# templates/partials/market_chart.html #}
+<div id="market-chart-container" class="card chart-panel">
+  <div class="chart-panel-header">
+    <div class="chart-title-area">
+      <h3 class="panel-title">Historical Price Action</h3>
+      {% if chart_data %}
+        <div class="chart-period-stats font-mono">
+          <span class="{{ 'change-positive' if chart_data.is_positive else 'change-negative' }}">
+            {{ '▲' if chart_data.is_positive else '▼' }}
+            {{ chart_data.price_change|currency(currency|default('USD')) }}
+            ({{ chart_data.price_change_pct|percent }})
+          </span>
+          <span class="text-muted font-sm">over {{ active_period }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Supported Period Selectors with HTMX #}
+    <div class="chart-period-selector" role="group" aria-label="Chart Period Selection">
+      {% for p in ['1D', '1W', '1M', '3M', '1Y', '5Y'] %}
+        <button
+          type="button"
+          class="period-btn {% if active_period == p %}active{% endif %}"
+          hx-get="/market/chart?symbol={{ symbol }}&period={{ p }}"
+          hx-target="#market-chart-container"
+          hx-swap="outerHTML"
+          hx-indicator="#chart-loading-indicator"
+          aria-pressed="{{ 'true' if active_period == p else 'false' }}"
+        >
+          {{ p }}
+        </button>
+      {% endfor %}
+      <span id="chart-loading-indicator" class="htmx-indicator font-mono font-sm text-muted">Loading...</span>
+    </div>
+  </div>
+
+  {% if chart_data %}
+    {# Pure Server-Rendered SVG Vector Chart #}
+    <div class="chart-svg-wrapper">
+      <svg
+        viewBox="0 0 {{ chart_data.width }} {{ chart_data.height }}"
+        class="market-chart-svg"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Historical price chart for {{ symbol }} showing {{ chart_data.point_count }} points over {{ active_period }}"
+      >
+        <defs>
+          <linearGradient id="chart-grad-{{ symbol }}-{{ active_period }}" x1="0" y1="0" x2="0" y2="1">
+            {% if chart_data.is_positive %}
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.30" />
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
+            {% else %}
+              <stop offset="0%" stop-color="#ef4444" stop-opacity="0.30" />
+              <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0" />
+            {% endif %}
+          </linearGradient>
+        </defs>
+
+        {# Background Gridlines & Y-Axis Labels #}
+        {% for yt in chart_data.y_ticks %}
+          <line
+            x1="{{ chart_data.plot_left }}"
+            y1="{{ yt.y }}"
+            x2="{{ chart_data.plot_left + chart_data.plot_width }}"
+            y2="{{ yt.y }}"
+            class="chart-gridline"
+          />
+          <text
+            x="{{ chart_data.plot_left - 8 }}"
+            y="{{ yt.y + 4 }}"
+            class="chart-axis-text chart-y-label font-mono"
+            text-anchor="end"
+          >{{ yt.label }}</text>
+        {% endfor %}
+
+        {# Area Fill Path #}
+        <path
+          d="{{ chart_data.area_d }}"
+          fill="url(#chart-grad-{{ symbol }}-{{ active_period }})"
+          class="chart-area-path"
+        />
+
+        {# Price Trend Polyline #}
+        <path
+          d="{{ chart_data.line_d }}"
+          fill="none"
+          stroke="{{ '#10b981' if chart_data.is_positive else '#ef4444' }}"
+          stroke-width="2.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+          class="chart-line-path"
+        />
+
+        {# X-Axis Date Labels #}
+        {% for xt in chart_data.x_ticks %}
+          <text
+            x="{{ xt.x }}"
+            y="{{ chart_data.plot_top + chart_data.plot_height + 20 }}"
+            class="chart-axis-text chart-x-label font-mono"
+            text-anchor="middle"
+          >{{ xt.label }}</text>
+        {% endfor %}
+      </svg>
+    </div>
+
+    {# Chart Meta Footer #}
+    <div class="chart-meta-footer">
+      <div class="chart-range-summary font-mono font-sm">
+        <span>Low: <strong>{{ chart_data.min_price|currency(currency|default('USD')) }}</strong></span>
+        <span>·</span>
+        <span>High: <strong>{{ chart_data.max_price|currency(currency|default('USD')) }}</strong></span>
+        <span>·</span>
+        <span>Points: <strong>{{ chart_data.point_count }}</strong></span>
+      </div>
+      <div class="chart-source-attribution font-sm text-muted">
+        Source: Yahoo Finance daily/intraday closes · Deterministic time-series
+      </div>
+    </div>
+  {% else %}
+    {# Honest Fallback State #}
+    <div class="chart-unavailable-box">
+      <div class="text-muted font-mono font-sm">
+        Historical price points are unavailable for <strong>{{ symbol }}</strong> (period: {{ active_period }}).
+      </div>
+      <p class="font-sm text-muted">
+        Upstream provider returned no OHLC points for this time horizon.
+      </p>
+      <button
+        class="btn btn-secondary btn-sm"
+        hx-get="/market/chart?symbol={{ symbol }}&period={{ active_period }}"
+        hx-target="#market-chart-container"
+        hx-swap="outerHTML"
+      >
+        Retry Period Data
+      </button>
+    </div>
+  {% endif %}
+</div>

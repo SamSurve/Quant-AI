@@ -1,66 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Market Intelligence — QuantAI{% endblock %}
+{% block title %}{{ symbol }} Market Intelligence — QuantAI{% endblock %}
 
 {% block content %}
 <div class="destination-page">
+  {# Page Top Header & Search #}
   <div class="page-header">
     <div class="page-title-group">
-      <div class="hero-badge">Destination A</div>
-      <h1 class="page-title">Market Intelligence</h1>
-      <p class="page-subtitle">Real-time quotes, technical signals, market snapshots, and contextual price history.</p>
+      <div class="hero-badge">Destination A · Market Intelligence</div>
+      <h1 class="page-title">{{ symbol }} Overview</h1>
+      <p class="page-subtitle">Real-time quotes, technical momentum signals, and contextual price history.</p>
     </div>
     <div class="page-search-wrapper">
       {% include "components/search_bar.html" %}
     </div>
   </div>
 
-  {# Selected Symbol Overview #}
-  <div class="symbol-header-card card">
-    <div class="symbol-title-row">
-      <div class="symbol-identity">
-        <span class="symbol-badge font-mono">{{ symbol }}</span>
-        <h2 class="symbol-company-name">{{ company_name|default('Market Benchmark') }}</h2>
-        <span class="badge badge-info">{{ exchange|default('US Equities') }}</span>
+  {% if validation_error %}
+    {# Symbol Format Validation Alert #}
+    <div class="card validation-error-card">
+      <div class="alert-icon">❌</div>
+      <div class="alert-content">
+        <h3 class="alert-heading">Invalid Ticker Symbol</h3>
+        <p class="alert-text">{{ validation_error }}</p>
+        <p class="font-sm text-muted">
+          Supported examples: <code>AAPL</code>, <code>MSFT</code>, <code>SPY</code>, <code>BRK.B</code>, <code>^GSPC</code>, <code>TMPV.NS</code>.
+        </p>
       </div>
-      <div class="symbol-quote-summary">
-        <span class="quote-price font-mono">{{ current_price|default('$584.20') }}</span>
-        <span class="quote-delta font-mono change-positive">▲ +0.42% Today</span>
-      </div>
     </div>
-  </div>
+  {% else %}
+    {# 1. Quote Summary & 4-Card Primary Metrics #}
+    {% include "partials/market_quote.html" %}
 
-  {# Destination Metrics Grid #}
-  <div class="grid grid-4">
-    {% with label="Volume", value="42.8M", subtext="Above 30-day avg" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
+    {# 2. Interactive Candlestick / Area Price Chart with HTMX Horizon Switching #}
+    {% include "partials/market_chart.html" %}
 
-    {% with label="Day Range", value="$581.10 - $585.40", subtext="Spread: 0.74%" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
-
-    {% with label="RSI (14D)", value="58.4", subtext="Neutral momentum" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
-
-    {% with label="Data Freshness", value="Real-Time Sourced", subtext="Yahoo Finance Feed", badge="Live", badge_type="positive" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
-  </div>
-
-  {# Placeholder / Foundation Section for M05/M06 Backend & Charts #}
-  <div class="card destination-placeholder-panel">
-    <div class="panel-header">
-      <h3 class="panel-title">Interactive Candlestick & Technical Analysis Workspace</h3>
-      <span class="badge badge-neutral">Ready for M05/M06</span>
+    {# 3. Lower Analysis Grid: Deterministic Signals & Event Radar #}
+    <div class="grid grid-2 market-analysis-grid">
+      {% include "partials/market_signal.html" %}
+      {% include "partials/market_events.html" %}
     </div>
-    <p class="panel-desc">
-      Interactive chart timeline, timeframe selectors (1D, 5D, 1M, 6M, 1Y, 5Y), and technical indicator overlays will connect to the resilient market service pipeline in Milestone 05 and Milestone 06.
-    </p>
-    <div class="chart-placeholder-box">
-      <span class="font-mono text-muted">Candlestick Chart Container · Powered by Python-Rendered Time-Series</span>
-    </div>
-  </div>
+  {% endif %}
 </div>
 {% endblock %}
