@@ -26,11 +26,15 @@
     </div>
     <div class="stat-box">
       <span class="stat-label text-muted">Session Change</span>
-      {% set chg = pulse.daily_change or 0.0 %}
-      {% set pct = pulse.daily_change_percent or 0.0 %}
-      <span class="stat-value font-mono {% if chg > 0 %}text-positive{% elif chg < 0 %}text-negative{% else %}text-muted{% endif %}">
-        {% if chg > 0 %}+{% endif %}{{ chg|round(2) }} ({{ pct|round(2) }}%)
-      </span>
+      {% if pulse.daily_change is not none and pulse.daily_change_percent is not none %}
+        {% set chg = pulse.daily_change %}
+        {% set pct = pulse.daily_change_percent %}
+        <span class="stat-value font-mono {% if chg > 0 %}text-positive{% elif chg < 0 %}text-negative{% else %}text-muted{% endif %}">
+          {% if chg > 0 %}+{% endif %}{{ chg|round(2) }} ({{ pct|round(2) }}%)
+        </span>
+      {% else %}
+        <span class="stat-value font-mono text-muted">—</span>
+      {% endif %}
     </div>
     {% if pulse.volume %}
     <div class="stat-box">

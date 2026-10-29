@@ -608,6 +608,7 @@ async def compare_page(request: Request, s1: str = "AAPL", s2: str = "MSFT") -> 
 async def research_page(
     request: Request,
     query: str = "",
+    symbol: str = "",
     mode: str = "standard",
     company_a: str = "",
     company_b: str = "",
@@ -622,7 +623,7 @@ async def research_page(
     }
     selected_mode = raw_mode if raw_mode in valid_modes else ResearchMode.STANDARD.value
 
-    clean_query = (query or "").strip()[:80]
+    clean_query = (query or symbol or "").strip()[:80]
     clean_ca = (company_a or "").strip()[:80]
     clean_cb = (company_b or "").strip()[:80]
 
@@ -649,7 +650,7 @@ async def research_page(
             has_inputs = bool(clean_query)
             if has_inputs:
                 has_executed = True
-            elif request.query_params.get("query") is not None:
+            elif request.query_params.get("query") is not None or request.query_params.get("symbol") is not None:
                 has_executed = True
                 error_msg = "Please enter a valid company name or stock symbol to conduct research."
 

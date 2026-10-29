@@ -24,7 +24,7 @@
           <a href="/market?symbol={{ candidate.symbol }}" class="btn btn-sm btn-secondary" title="View Market Intelligence">Market</a>
           <a href="/analysis?symbol={{ candidate.symbol }}" class="btn btn-sm btn-secondary" title="Deep Analysis">Analysis</a>
           <a href="/compare?s1={{ candidate.symbol }}&s2=MSFT" class="btn btn-sm btn-secondary" title="Compare against peer">Compare</a>
-          <a href="/research?symbol={{ candidate.symbol }}" class="btn btn-sm btn-primary" title="AI Research Desk">Research</a>
+          <a href="/research?query={{ candidate.symbol }}" class="btn btn-sm btn-primary" title="AI Research Desk">Research</a>
         </div>
       </li>
     {% endfor %}

@@ -2544,6 +2544,11 @@ body {
   background-color: var(--bg-hover);
 }
 
+.mode-tab-pill:focus-within {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 .mode-tab-pill.active {
   background-color: var(--accent-primary);
   color: #ffffff;

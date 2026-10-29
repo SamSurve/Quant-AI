@@ -18,11 +18,15 @@
     </div>
     <div class="stat-box">
       <span class="stat-label text-muted">Session Change</span>
-      {% set chg = response.market.daily_change or 0.0 %}
-      {% set pct = response.market.daily_change_percent or 0.0 %}
-      <span class="stat-value font-mono {% if chg > 0 %}text-positive{% elif chg < 0 %}text-negative{% else %}text-muted{% endif %}">
-        {% if chg > 0 %}+{% endif %}{{ chg|round(2) }} ({{ pct|round(2) }}%)
-      </span>
+      {% if response.market.daily_change is not none and response.market.daily_change_percent is not none %}
+        {% set chg = response.market.daily_change %}
+        {% set pct = response.market.daily_change_percent %}
+        <span class="stat-value font-mono {% if chg > 0 %}text-positive{% elif chg < 0 %}text-negative{% else %}text-muted{% endif %}">
+          {% if chg > 0 %}+{% endif %}{{ chg|round(2) }} ({{ pct|round(2) }}%)
+        </span>
+      {% else %}
+        <span class="stat-value font-mono text-muted">—</span>
+      {% endif %}
     </div>
     {% if response.market.volume %}
     <div class="stat-box">
