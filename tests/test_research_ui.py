@@ -16,6 +16,7 @@ Verifies that:
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import sys
 
@@ -598,6 +599,62 @@ class TestResearchUI(unittest.TestCase):
         html = res.text
         self.assertNotIn("Phase 5 AI Research Desk integration pending", html)
 
+
+
+    def test_research_page_contains_chat_panel(self):
+        """Dedicated AI Research Desk includes the interactive conversational chat exchange."""
+        res = self.client.get("/research")
+        self.assertEqual(res.status_code, 200)
+        html = res.text
+        self.assertIn("research-chat-panel", html)
+        self.assertIn("Research Desk Exchange", html)
+        self.assertIn("Pressure-test the thesis", html)
+        self.assertIn("Trace the source lane", html)
+        self.assertIn("Separate evidence from interpretation", html)
+        self.assertIn("Session Ledger", html)
+
+    def test_research_chat_partial_endpoint(self):
+        """GET /research/chat returns the chat exchange partial."""
+        res = self.client.get("/research/chat")
+        self.assertEqual(res.status_code, 200)
+        html = res.text
+        self.assertIn("research-chat-panel", html)
+        self.assertIn("Open a research ledger with QuantAI", html)
+
+    def test_research_chat_post_turn(self):
+        """POST /research/chat returns rendered user query and agent response bubbles."""
+        res = self.client.post("/research/chat", data={"message": "Pressure-test the thesis for AAPL"})
+        self.assertEqual(res.status_code, 200)
+        html = res.text
+        self.assertIn("chat-turn", html)
+        self.assertIn("Analyst Query", html)
+        self.assertIn("Pressure-test the thesis for AAPL", html)
+        self.assertIn("QuantAI Finance Agent", html)
+        self.assertIn("agent-markdown", html)
+
+    def test_research_chat_empty_message(self):
+        """POST /research/chat with empty or whitespace message returns empty 200 response without error."""
+        res = self.client.post("/research/chat", data={"message": "   "})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.text.strip(), "")
+
+    def test_research_chat_clear(self):
+        """POST /research/chat/clear returns empty chat prompt state."""
+        res = self.client.post("/research/chat/clear")
+        self.assertEqual(res.status_code, 200)
+        html = res.text
+        self.assertIn("chat-empty-state", html)
+        self.assertIn("Open a research ledger with QuantAI", html)
+
+    @patch("api.web.agent.run")
+    def test_research_chat_handles_agent_exception(self, mock_agent_run):
+        """When agent run encounters an exception, friendly fallback message is returned safely."""
+        mock_agent_run.side_effect = RuntimeError("Provider circuit breaker open")
+        res = self.client.post("/research/chat", data={"message": "Check valuation"})
+        self.assertEqual(res.status_code, 200)
+        html = res.text
+        self.assertIn("AI analysis is temporarily unavailable", html)
+        self.assertIn("deterministic market, deep analysis, and comparison tools remain fully available", html)
 
 if __name__ == "__main__":
     unittest.main()

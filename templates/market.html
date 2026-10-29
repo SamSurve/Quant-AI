@@ -9,7 +9,7 @@
     <div class="page-title-group">
       <div class="hero-badge">Destination A · Market Intelligence</div>
       <h1 class="page-title">{{ symbol }} Overview</h1>
-      <p class="page-subtitle">Real-time quotes, technical momentum signals, and contextual price history.</p>
+      <p class="page-subtitle">Real-time quotes, technical momentum signals, contextual price history, and sourced news.</p>
     </div>
     <div class="page-search-wrapper">
       {% include "components/search_bar.html" %}
@@ -40,6 +40,29 @@
       {% include "partials/market_signal.html" %}
       {% include "partials/market_events.html" %}
     </div>
+
+    {# 4. Sourced News Stream #}
+    {% if news_result %}
+      {% include "partials/market_news.html" %}
+    {% else %}
+      <div id="market-news-container"
+           hx-get="/market/news?symbol={{ symbol }}"
+           hx-trigger="load"
+           hx-swap="outerHTML">
+        <div class="card news-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3 class="panel-title">Sourced Recent News</h3>
+              <span class="badge badge-neutral">Headlines</span>
+            </div>
+            <span class="htmx-indicator font-mono font-sm text-muted">Loading news feed...</span>
+          </div>
+          <div class="news-list" style="padding: var(--space-base);">
+            <p class="font-sm text-muted">Fetching latest sourced market news for <strong>{{ symbol }}</strong>...</p>
+          </div>
+        </div>
+      </div>
+    {% endif %}
   {% endif %}
 </div>
 {% endblock %}

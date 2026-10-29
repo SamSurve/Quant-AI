@@ -1,0 +1,69 @@
+{# templates/partials/market_news.html #}
+<div id="market-news-container" class="card news-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <h3 class="panel-title">Sourced Recent News</h3>
+      <span class="badge badge-neutral">Headlines</span>
+    </div>
+    {% if news_result and news_result.status.value == 'available' and news_result.items %}
+      <span class="badge badge-info">{{ news_result.items|length }} Articles</span>
+    {% elif news_result and news_result.status.value == 'partial' %}
+      <span class="badge badge-warning">Partial</span>
+    {% else %}
+      <span class="badge badge-neutral">Feed Unavailable</span>
+    {% endif %}
+  </div>
+
+  {% if news_result and news_result.status.value != 'unavailable' and news_result.items %}
+    <div class="news-list">
+      {% for item in news_result.items %}
+        <div class="news-item">
+          <div class="news-meta font-mono font-sm text-muted">
+            <span class="news-publisher">{{ item.publisher or 'Financial Wire' }}</span>
+            {% if item.published_at %}
+              <span>·</span>
+              <span class="news-date">{{ item.published_at[:10] }}</span>
+            {% endif %}
+          </div>
+          <div class="news-title-row">
+            {% if item.url and (item.url.startswith('http://') or item.url.startswith('https://')) %}
+              <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" class="news-headline font-medium">
+                <span>{{ item.title }}</span>
+                <span class="link-arrow">↗</span>
+              </a>
+            {% else %}
+              <span class="news-headline font-medium">{{ item.title }}</span>
+            {% endif %}
+          </div>
+          {% if item.summary %}
+            <p class="news-summary text-muted font-sm">{{ item.summary }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="news-footer font-sm text-muted">
+      Source: {{ news_result.sources[0].source if news_result.sources and news_result.sources|length > 0 else 'DuckDuckGo / Yahoo Finance' }} · Verified news stream
+    </div>
+  {% elif news_result and news_result.status.value != 'unavailable' and not news_result.items %}
+    <div class="news-empty-box">
+      <p class="font-sm text-muted">
+        No sourced recent news was returned by the data provider for <strong>{{ symbol }}</strong>.
+      </p>
+    </div>
+  {% else %}
+    <div class="news-unavailable-box">
+      <p class="font-sm text-muted">
+        Recent news stream is currently unavailable from the upstream provider.
+      </p>
+      <button
+        class="btn btn-secondary btn-sm"
+        hx-get="/market/news?symbol={{ symbol }}"
+        hx-target="#market-news-container"
+        hx-swap="outerHTML"
+      >
+        Retry News Feed
+      </button>
+    </div>
+  {% endif %}
+</div>

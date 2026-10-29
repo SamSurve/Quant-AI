@@ -31,8 +31,10 @@ from api.research_schemas import (
     ErrorCategory,
     IdentifierConfidence,
     SourceRecord,
+    NewsItem,
 )
 from api.research_errors import ResearchError
+from api.research_services import NewsDataResult
 from api.web import (
     format_currency,
     format_percent,
@@ -386,6 +388,116 @@ class TestMarketIntelligenceUI(unittest.TestCase):
         self.assertIn("Historical price points are unavailable", html)
         self.assertIn("Retry Period Data", html)
 
+
+
+    @patch("api.web.default_price_history_service.fetch")
+    def test_market_chart_partial_six_months(self, mock_history):
+        """HTMX chart partial returns SVG chart for 6M requested horizon."""
+        daily_points = [
+            HistoryPoint(timestamp=f"2026-05-{i:02d}", close=140.0 + i)
+            for i in range(1, 25)
+        ]
+        mock_history.return_value = (
+            HistoryResult(
+                history=PriceHistoryBundle(
+                    daily=daily_points,
+                    intraday=[],
+                    available_periods=[HistoryPeriod.SIX_MONTHS],
+                    default_period=HistoryPeriod.SIX_MONTHS,
+                    freshness=FreshnessRecord(state=FreshnessState.LIVE),
+                ),
+                status=ServiceState.AVAILABLE,
+                warning=None,
+                source=None,
+                retrieved_at="2026-10-29T16:00:00Z",
+            ),
+            FreshnessRecord(state=FreshnessState.LIVE),
+        )
+
+        resp = self.client.get("/market/chart?symbol=AAPL&period=6M")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn("market-chart-svg", html)
+        self.assertIn("6M", html)
+        self.assertIn('aria-pressed="true"', html)
+
+    @patch("api.web.default_news_service.fetch")
+    def test_market_news_partial_available(self, mock_news):
+        """HTMX market news partial returns formatted articles when available."""
+        mock_news.return_value = NewsDataResult(
+            items=[
+                NewsItem(
+                    title="Apple Expands Enterprise AI Services",
+                    publisher="Reuters",
+                    published_at="2026-10-29T10:00:00Z",
+                    url="https://example.com/aapl-news",
+                    summary="Apple announced new enterprise AI partnerships.",
+                    relevance="high",
+                    sentiment="positive",
+                ),
+                NewsItem(
+                    title="Q4 Earnings Preview",
+                    publisher="Bloomberg",
+                    published_at="2026-10-28T14:30:00Z",
+                    url="https://example.com/aapl-preview",
+                    summary="Analysts raise revenue estimates ahead of quarterly report.",
+                    relevance="medium",
+                    sentiment="neutral",
+                ),
+            ],
+            status=ServiceState.AVAILABLE,
+            warning=None,
+            sources=[SourceRecord(source="DuckDuckGo News", retrieved_at="2026-10-29T16:00:00Z", data_type="news")],
+        )
+
+        resp = self.client.get("/market/news?symbol=AAPL")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn("market-news-container", html)
+        self.assertIn("Sourced Recent News", html)
+        self.assertIn("2 Articles", html)
+        self.assertIn("Apple Expands Enterprise AI Services", html)
+        self.assertIn("Reuters", html)
+        self.assertIn("https://example.com/aapl-news", html)
+
+    @patch("api.web.default_news_service.fetch")
+    def test_market_news_partial_empty(self, mock_news):
+        """HTMX market news partial displays honest message when no articles returned."""
+        mock_news.return_value = NewsDataResult(
+            items=[],
+            status=ServiceState.AVAILABLE,
+            warning=None,
+            sources=[],
+        )
+
+        resp = self.client.get("/market/news?symbol=AAPL")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn("No sourced recent news was returned", html)
+
+    @patch("api.web.default_news_service.fetch")
+    def test_market_news_partial_unavailable(self, mock_news):
+        """HTMX market news partial displays honest unavailable notice and retry trigger."""
+        mock_news.return_value = NewsDataResult(
+            items=[],
+            status=ServiceState.UNAVAILABLE,
+            warning=ResearchError(category=ErrorCategory.NEWS_UNAVAILABLE, detail="Upstream rate limit"),
+            sources=[],
+        )
+
+        resp = self.client.get("/market/news?symbol=AAPL")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn("Recent news stream is currently unavailable", html)
+        self.assertIn("Retry News Feed", html)
+
+    def test_market_page_includes_news_container(self):
+        """Market page HTML includes the market-news-container partial trigger."""
+        resp = self.client.get("/market?symbol=AAPL")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn("market-news-container", html)
+        self.assertIn("Sourced Recent News", html)
 
 if __name__ == "__main__":
     unittest.main()

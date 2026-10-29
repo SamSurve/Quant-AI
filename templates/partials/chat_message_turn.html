@@ -1,0 +1,28 @@
+{# templates/partials/chat_message_turn.html #}
+<div class="chat-turn">
+  {# User Message Bubble #}
+  <div class="chat-message-row user-row">
+    <div class="chat-message-bubble user-bubble">
+      <div class="bubble-header font-mono font-xs">
+        <span>Analyst Query</span>
+        <span>·</span>
+        <span>{{ timestamp }}</span>
+      </div>
+      <div class="bubble-body">{{ user_message }}</div>
+    </div>
+  </div>
+
+  {# Agent Response Bubble #}
+  <div class="chat-message-row agent-row">
+    <div class="chat-message-bubble agent-bubble">
+      <div class="bubble-header font-mono font-xs">
+        <span class="badge badge-neutral font-xs">QuantAI Finance Agent</span>
+        <span>·</span>
+        <span>{{ timestamp }}</span>
+      </div>
+      <div class="bubble-body agent-markdown">
+        {{ agent_html | safe }}
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,100 @@
+{# templates/partials/research_chat.html #}
+<div id="research-chat-panel" class="card research-chat-panel" aria-label="Financial AI Chat">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">CONVERSATIONAL INTELLIGENCE</div>
+      <h3 class="panel-title">Research Desk Exchange</h3>
+    </div>
+    <div class="chat-status-badges">
+      <span class="badge badge-positive font-mono font-xs">Evidence Lane</span>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm font-mono"
+        hx-post="/research/chat/clear"
+        hx-target="#chat-messages-container"
+        hx-swap="innerHTML"
+        title="Reset conversation"
+      >
+        Clear Ledger
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-session-bar font-mono font-xs text-muted">
+    <span>Session Ledger</span>
+    <span>Sourced Fact Lane · Verified Inputs</span>
+  </div>
+
+  {# Messages Container with Scroll #}
+  <div id="chat-messages-container" class="chat-messages-container" role="log" aria-live="polite">
+    {% include "partials/chat_empty_state.html" %}
+  </div>
+
+  {# Quick Prompt Pills #}
+  <div class="chat-prompts-bar">
+    <span class="prompts-label font-mono font-xs text-muted">Research Prompts:</span>
+    <div class="prompts-list">
+      <button
+        type="button"
+        class="prompt-pill font-mono"
+        onclick="setChatPrompt('Pressure-test the thesis for ' + (document.getElementById('research-query-input')?.value || 'AAPL'))"
+      >
+        Pressure-test the thesis
+      </button>
+      <button
+        type="button"
+        class="prompt-pill font-mono"
+        onclick="setChatPrompt('Trace the source lane for ' + (document.getElementById('research-query-input')?.value || 'AAPL'))"
+      >
+        Trace the source lane
+      </button>
+      <button
+        type="button"
+        class="prompt-pill font-mono"
+        onclick="setChatPrompt('Separate evidence from interpretation for ' + (document.getElementById('research-query-input')?.value || 'AAPL'))"
+      >
+        Separate evidence from interpretation
+      </button>
+    </div>
+  </div>
+
+  {# Chat Input Form #}
+  <form
+    id="research-chat-form"
+    class="chat-input-form"
+    hx-post="/research/chat"
+    hx-target="#chat-messages-container"
+    hx-swap="beforeend"
+    hx-indicator="#chat-spinner"
+    hx-on::after-request="if(event.detail.successful) { document.getElementById('chat-message-input').value = ''; const c = document.getElementById('chat-messages-container'); c.scrollTop = c.scrollHeight; }"
+  >
+    <div class="chat-input-row">
+      <textarea
+        id="chat-message-input"
+        name="message"
+        placeholder="Frame an analyst instruction or ask a financial question..."
+        class="input-terminal chat-textarea font-mono"
+        rows="2"
+        required
+        onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); htmx.trigger(this.form, 'submit'); }"
+      ></textarea>
+      <button type="submit" class="btn btn-primary chat-submit-btn font-mono" aria-label="Send message">
+        <span>Send</span>
+        <span id="chat-spinner" class="htmx-indicator spinner"></span>
+      </button>
+    </div>
+    <div class="chat-hint-bar font-mono font-xs text-muted">
+      Enter to send · Shift+Enter for new line · Trace factual assertions to source records before acting
+    </div>
+  </form>
+</div>
+
+<script>
+  function setChatPrompt(promptText) {
+    const input = document.getElementById('chat-message-input');
+    if (input) {
+      input.value = promptText;
+      input.focus();
+    }
+  }
+</script>

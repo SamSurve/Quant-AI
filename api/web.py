@@ -14,7 +14,9 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from .research_services import EntityResolutionService
+from markdown_it import MarkdownIt
+from .research_services import EntityResolutionService, NewsService
+from .groq_finance_agent import agent
 from .research_schemas import (
     CompanyIdentity,
     IdentifierConfidence,
@@ -36,6 +38,8 @@ from .market_intelligence_services import (
 from .company_analysis_services import fetch_company_analysis_bundle
 
 LOGGER = logging.getLogger("quantai.web")
+default_news_service = NewsService()
+md_renderer = MarkdownIt("commonmark", {"html": False, "breaks": True})
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -329,6 +333,7 @@ async def market_page(request: Request, symbol: str = "SPY", period: str = "1M")
         "chart_data": chart_data,
         "signal": signal,
         "events_result": events_res,
+        "news_result": None,
         "validation_error": None,
     }
     return safe_render_template(request, "market.html", context)
@@ -425,6 +430,34 @@ async def market_events_partial(request: Request, symbol: str = "SPY") -> Respon
         {
             "symbol": clean_symbol,
             "events_result": events_res,
+        },
+    )
+
+
+@router.get("/market/news", response_class=HTMLResponse)
+async def market_news_partial(request: Request, symbol: str = "SPY") -> Response:
+    """HTMX partial for sourced company news updates."""
+    try:
+        clean_symbol = normalize_symbol(symbol)
+    except ValueError:
+        return safe_render_template(
+            request,
+            "partials/market_news.html",
+            {
+                "symbol": symbol.strip()[:16],
+                "news_result": None,
+            },
+        )
+
+    entity = CompanyIdentity(symbol=clean_symbol, identifier_confidence=IdentifierConfidence.HIGH)
+    news_res = await default_news_service.fetch(entity)
+
+    return safe_render_template(
+        request,
+        "partials/market_news.html",
+        {
+            "symbol": clean_symbol,
+            "news_result": news_res,
         },
     )
 
@@ -707,6 +740,61 @@ async def search_endpoint(request: Request, q: str = "") -> Response:
         "candidates": candidates,
     }
     return safe_render_template(request, "partials/search_results.html", context)
+
+
+async def execute_agent_chat_turn(message: str) -> str:
+    """Execute a conversational research turn with the QuantAI Finance Agent."""
+    cleaned = (message or "").strip()
+    if not cleaned:
+        return "Please frame a research instruction or question to open a research ledger."
+    try:
+        loop = asyncio.get_running_loop()
+        output = await loop.run_in_executor(None, lambda: agent.run(cleaned, stream=False))
+        content = output.content if hasattr(output, "content") else str(output)
+        if not content:
+            content = "The finance agent returned no analysis."
+        return content
+    except Exception as err:
+        LOGGER.warning("finance_agent_chat_turn_error: %s", err)
+        return "AI analysis is temporarily unavailable. Please try again shortly; deterministic market, deep analysis, and comparison tools remain fully available."
+
+
+@router.get("/research/chat", response_class=HTMLResponse)
+async def research_chat_partial(request: Request) -> Response:
+    """HTMX partial to render the interactive conversational research desk."""
+    return safe_render_template(
+        request,
+        "partials/research_chat.html",
+        {},
+    )
+
+
+@router.post("/research/chat", response_class=HTMLResponse)
+async def research_chat_post(request: Request) -> Response:
+    """HTMX endpoint to process a conversational research message and return rendered turn bubbles."""
+    form_data = await request.form()
+    message = str(form_data.get("message", "")).strip()
+
+    if not message:
+        return Response(content="", media_type="text/html")
+
+    agent_response_text = await execute_agent_chat_turn(message)
+    agent_html = md_renderer.render(agent_response_text)
+
+    timestamp = time.strftime("%H:%M:%S UTC", time.gmtime())
+    context = {
+        "user_message": message,
+        "agent_response": agent_response_text,
+        "agent_html": agent_html,
+        "timestamp": timestamp,
+    }
+    return safe_render_template(request, "partials/chat_message_turn.html", context)
+
+
+@router.post("/research/chat/clear", response_class=HTMLResponse)
+async def research_chat_clear(request: Request) -> Response:
+    """HTMX endpoint to reset conversation history back to the ledger prompt."""
+    return safe_render_template(request, "partials/chat_empty_state.html", {})
 
 
 @router.get("/health/ready", tags=["operations"])
