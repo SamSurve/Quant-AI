@@ -7,6 +7,7 @@ import html
 import logging
 import math
 from pathlib import Path
+import time
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Request, Response
@@ -535,10 +536,13 @@ def is_htmx_request(request: Request) -> bool:
 
 
 _COMPARISON_ORCHESTRATOR = None
+_RESEARCH_ORCHESTRATOR = None
 
 
-def _get_comparison_orchestrator() -> ResearchOrchestrator:
-    global _COMPARISON_ORCHESTRATOR
+def _get_research_orchestrator() -> ResearchOrchestrator:
+    global _RESEARCH_ORCHESTRATOR, _COMPARISON_ORCHESTRATOR
+    if _RESEARCH_ORCHESTRATOR is not None:
+        return _RESEARCH_ORCHESTRATOR
     if _COMPARISON_ORCHESTRATOR is not None:
         return _COMPARISON_ORCHESTRATOR
     try:
@@ -547,8 +551,12 @@ def _get_comparison_orchestrator() -> ResearchOrchestrator:
             return idx.research_orchestrator
     except (ImportError, AttributeError):
         pass
-    _COMPARISON_ORCHESTRATOR = ResearchOrchestrator()
-    return _COMPARISON_ORCHESTRATOR
+    _RESEARCH_ORCHESTRATOR = ResearchOrchestrator()
+    return _RESEARCH_ORCHESTRATOR
+
+
+def _get_comparison_orchestrator() -> ResearchOrchestrator:
+    return _get_research_orchestrator()
 
 
 @router.get("/compare", response_class=HTMLResponse)
@@ -597,12 +605,94 @@ async def compare_page(request: Request, s1: str = "AAPL", s2: str = "MSFT") -> 
 
 
 @router.get("/research", response_class=HTMLResponse)
-async def research_page(request: Request, query: str = "") -> Response:
+async def research_page(
+    request: Request,
+    query: str = "",
+    mode: str = "standard",
+    company_a: str = "",
+    company_b: str = "",
+) -> Response:
     """Destination D: Dedicated AI Research Desk workspace."""
+    raw_mode = (mode or "standard").strip().lower()
+    valid_modes = {
+        ResearchMode.STANDARD.value,
+        ResearchMode.MARKET_INTELLIGENCE.value,
+        ResearchMode.COMPANY_DEEP_ANALYSIS.value,
+        ResearchMode.COMPANY_COMPARISON.value,
+    }
+    selected_mode = raw_mode if raw_mode in valid_modes else ResearchMode.STANDARD.value
+
+    clean_query = (query or "").strip()[:80]
+    clean_ca = (company_a or "").strip()[:80]
+    clean_cb = (company_b or "").strip()[:80]
+
+    error_msg: str | None = None
+    has_executed = False
+
+    # Check for disallowed characters / XSS
+    for val in (clean_query, clean_ca, clean_cb):
+        if any(char in val for char in ("<", ">", "\r", "\n", "\t")) or any(ord(c) == 0 for c in val):
+            error_msg = "Invalid input format. HTML tags and control characters are not permitted."
+            has_executed = True
+            break
+
+    if not error_msg:
+        if selected_mode == ResearchMode.COMPANY_COMPARISON.value:
+            has_inputs = bool(clean_ca or clean_cb)
+            if has_inputs:
+                has_executed = True
+                if not clean_ca or not clean_cb:
+                    error_msg = "Please provide both Company A and Company B ticker symbols to run peer comparison."
+                elif clean_ca.upper() == clean_cb.upper():
+                    error_msg = f"Cannot compare company '{clean_ca.upper()}' against itself. Please specify two distinct entities."
+        else:
+            has_inputs = bool(clean_query)
+            if has_inputs:
+                has_executed = True
+            elif request.query_params.get("query") is not None:
+                has_executed = True
+                error_msg = "Please enter a valid company name or stock symbol to conduct research."
+
+    research_res: ResearchResponse | None = None
+    if has_executed and not error_msg:
+        try:
+            orchestrator = _get_research_orchestrator()
+            req_id = f"web-res-{int(time.time() * 1000)}"
+            target_mode = ResearchMode(selected_mode)
+            if target_mode == ResearchMode.COMPANY_COMPARISON:
+                research_req = ResearchRequest(
+                    mode=target_mode,
+                    company_a=clean_ca,
+                    company_b=clean_cb,
+                    include_analysis=True,
+                )
+            else:
+                research_req = ResearchRequest(
+                    mode=target_mode,
+                    query=clean_query,
+                    include_analysis=True,
+                )
+            research_res = await orchestrator.research(req_id, research_req)
+        except ResearchError as err:
+            error_msg = f"Research Error: {err.detail}"
+        except Exception as exc:
+            LOGGER.warning("Research desk execution error for query='%s', mode='%s': %s", clean_query, selected_mode, exc)
+            target_entity = clean_query or f"{clean_ca} vs {clean_cb}"
+            error_msg = f"Unable to complete research for '{target_entity}' at this time. Please verify the query and try again."
+
     context = {
         "active_page": "research",
-        "query": query.strip()[:120],
+        "query": clean_query,
+        "mode": selected_mode,
+        "company_a": clean_ca,
+        "company_b": clean_cb,
+        "response": research_res,
+        "error": error_msg,
+        "has_executed": has_executed,
     }
+
+    if is_htmx_request(request):
+        return safe_render_template(request, "partials/research_content.html", context)
     return safe_render_template(request, "research.html", context)
 
 

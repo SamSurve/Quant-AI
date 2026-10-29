@@ -1,0 +1,202 @@
+{# Company Deep Analysis Mode Presentation Fragment #}
+{% set da = response.company_deep_analysis %}
+
+{# Overview & Identity Card #}
+{% if da.company_overview %}
+<div class="card symbol-header-card">
+  <div class="symbol-title-row">
+    <div class="symbol-identity">
+      <span class="symbol-badge font-mono">{{ da.company_overview.ticker }}</span>
+      <h2 class="symbol-company-name">{{ da.company_overview.company_name or da.company_overview.ticker }}</h2>
+      {% if da.company_overview.exchange %}
+        <span class="badge badge-neutral font-mono">{{ da.company_overview.exchange }}</span>
+      {% endif %}
+      {% if da.company_overview.sector %}
+        <span class="badge badge-info">{{ da.company_overview.sector }}</span>
+      {% endif %}
+      {% if da.company_overview.industry %}
+        <span class="badge badge-outline">{{ da.company_overview.industry }}</span>
+      {% endif %}
+    </div>
+    <div class="symbol-quote-summary">
+      <div class="quote-sub-meta font-mono">
+        {% if da.company_overview.country %}
+          <span class="badge badge-neutral">{{ da.company_overview.country }}</span>
+        {% endif %}
+        {% if da.company_overview.headquarters %}
+          <span class="text-muted text-xs">HQ: {{ da.company_overview.headquarters }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Deterministic Financial Health Metrics #}
+{% if da.financial_health %}
+{% set fh = da.financial_health %}
+{% set curr = fh.currency or 'USD' %}
+<div class="card ratios-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">FUNDAMENTAL VALUATION & METRICS</div>
+      <h3 class="panel-title">Financial Health Ratios</h3>
+    </div>
+    <span class="badge badge-info font-mono text-xs">Reporting Period: {{ fh.fiscal_period_end or 'Latest' }}</span>
+  </div>
+
+  <div class="research-stats-grid">
+    {% if fh.revenue %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Total Revenue</span>
+      <span class="stat-value font-mono">{{ fh.revenue | compact_currency(curr) }}</span>
+    </div>
+    {% endif %}
+    {% if fh.net_income %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Net Income</span>
+      <span class="stat-value font-mono">{{ fh.net_income | compact_currency(curr) }}</span>
+    </div>
+    {% endif %}
+    {% if fh.free_cash_flow %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Free Cash Flow</span>
+      <span class="stat-value font-mono">{{ fh.free_cash_flow | compact_currency(curr) }}</span>
+    </div>
+    {% endif %}
+    {% if fh.profit_margin is not none %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Net Profit Margin</span>
+      <span class="stat-value font-mono">{{ (fh.profit_margin * 100) | round(2) }}%</span>
+    </div>
+    {% endif %}
+    {% if fh.operating_margin is not none %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Operating Margin</span>
+      <span class="stat-value font-mono">{{ (fh.operating_margin * 100) | round(2) }}%</span>
+    </div>
+    {% endif %}
+    {% if fh.pe_ratio is not none %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">P/E Ratio</span>
+      <span class="stat-value font-mono">{{ fh.pe_ratio | round(2) }}x</span>
+    </div>
+    {% endif %}
+    {% if fh.price_to_sales is not none %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">P/S Ratio</span>
+      <span class="stat-value font-mono">{{ fh.price_to_sales | round(2) }}x</span>
+    </div>
+    {% endif %}
+    {% if fh.eps is not none %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Diluted EPS</span>
+      <span class="stat-value font-mono">${{ fh.eps | round(2) }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Governance Profile #}
+{% if da.governance %}
+{% set gov = da.governance %}
+<div class="card governance-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">CORPORATE LEADERSHIP</div>
+      <h3 class="panel-title">Corporate Governance</h3>
+    </div>
+    <span class="badge badge-neutral font-mono text-xs">Board & Leadership</span>
+  </div>
+
+  <div class="governance-body">
+    {% if gov.ceo %}
+    <div class="ceo-leadership-row">
+      <span class="badge badge-primary font-mono text-xs">CEO</span>
+      <span class="font-semibold">{{ gov.ceo.name }}</span>
+      {% if gov.ceo.title %}<span class="text-muted text-xs">({{ gov.ceo.title }})</span>{% endif %}
+      {% if gov.ceo.since %}<span class="text-muted text-xs font-mono">Tenure Since {{ gov.ceo.since }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if gov.key_leadership %}
+    <div class="leadership-list-wrap">
+      <span class="text-muted text-xs font-mono">Executive Officers:</span>
+      <ul class="leadership-list">
+        {% for lead in gov.key_leadership %}
+        <li class="font-mono text-xs text-muted">
+          <span class="text-primary">{{ lead.name }}</span> — {{ lead.title or 'Officer' }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Analyst AI Interpretation Card #}
+{% if da.analyst_interpretation %}
+{% set interp = da.analyst_interpretation %}
+<div class="card research-synthesis-card">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">DEEP SYNTHESIS & VALUATION</div>
+      <h3 class="panel-title">Evidence-Grounded Deep Analysis</h3>
+    </div>
+    <div class="synthesis-badges">
+      {% if interp.valuation_view and interp.valuation_view.classification %}
+      <span class="badge {% if interp.valuation_view.classification == 'UNDERVALUED' %}badge-positive{% elif interp.valuation_view.classification == 'HIGHLY_VALUED' %}badge-warning{% else %}badge-neutral{% endif %} font-mono">
+        Valuation: {{ interp.valuation_view.classification }}
+      </span>
+      {% endif %}
+      {% if interp.confidence %}
+      <span class="badge badge-outline font-mono">Confidence: {{ interp.confidence | upper }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="synthesis-body">
+    {% if interp.executive_summary %}
+    <div class="synthesis-section">
+      <h5 class="synthesis-section-title text-muted font-mono">EXECUTIVE SUMMARY</h5>
+      <p class="synthesis-text">{{ interp.executive_summary }}</p>
+    </div>
+    {% endif %}
+
+    {% if interp.valuation_view and interp.valuation_view.rationale %}
+    <div class="synthesis-section">
+      <h5 class="synthesis-section-title text-muted font-mono">VALUATION PERSPECTIVE</h5>
+      <p class="synthesis-text">{{ interp.valuation_view.rationale }}</p>
+    </div>
+    {% endif %}
+
+    {% if interp.growth_drivers or interp.key_risks %}
+    <div class="grid grid-2 thesis-factors-grid">
+      {% if interp.growth_drivers %}
+      <div class="factor-column column-bullish">
+        <h5 class="factor-heading font-mono text-positive">◈ Core Growth Drivers</h5>
+        <ul class="factors-bullet-list">
+          {% for gd in interp.growth_drivers %}
+          <li class="factor-bullet-item font-mono text-xs"><span>+</span> {{ gd }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if interp.key_risks %}
+      <div class="factor-column column-bearish">
+        <h5 class="factor-heading font-mono text-warning">◈ Key Operational Risks</h5>
+        <ul class="factors-bullet-list">
+          {% for rk in interp.key_risks %}
+          <li class="factor-bullet-item font-mono text-xs"><span>−</span> {{ rk }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
