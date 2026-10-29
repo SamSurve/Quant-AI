@@ -28,6 +28,7 @@ from .market_intelligence_services import (
     default_price_history_service,
     default_event_radar_service,
 )
+from .company_analysis_services import fetch_company_analysis_bundle
 
 LOGGER = logging.getLogger("quantai.web")
 
@@ -70,8 +71,27 @@ def format_large_number(val: int | float | None) -> str:
     return f"{val:,}"
 
 
+def format_compact_currency(val: float | int | None, currency: str = "USD") -> str:
+    """Format currency values with clean B/M/K scale suffix for terminal cards and tables."""
+    if val is None or (isinstance(val, float) and (math.isnan(val) or math.isinf(val))):
+        return "N/A"
+    sym = "$" if currency == "USD" else f"{currency} "
+    neg = "-" if val < 0 else ""
+    abs_val = abs(val)
+    if abs_val >= 1_000_000_000_000:
+        return f"{neg}{sym}{abs_val / 1_000_000_000_000:.2f}T"
+    if abs_val >= 1_000_000_000:
+        return f"{neg}{sym}{abs_val / 1_000_000_000:.2f}B"
+    if abs_val >= 1_000_000:
+        return f"{neg}{sym}{abs_val / 1_000_000:.2f}M"
+    if abs_val >= 1_000:
+        return f"{neg}{sym}{abs_val / 1_000:.1f}K"
+    return f"{neg}{sym}{abs_val:,.2f}"
+
+
 # Register template filters
 templates.env.filters["currency"] = format_currency
+templates.env.filters["compact_currency"] = format_compact_currency
 templates.env.filters["percent"] = format_percent
 templates.env.filters["large_num"] = format_large_number
 
@@ -364,17 +384,105 @@ async def market_events_partial(request: Request, symbol: str = "SPY") -> Respon
     )
 
 
+def _get_statement_periods(bundle: Any, active_type: str, active_freq: str) -> list:
+    """Extract matching statement periods based on type and frequency."""
+    if not bundle or not bundle.statements:
+        return []
+    s = bundle.statements
+    if active_type == "income":
+        return s.annual_income if active_freq == "annual" else s.quarterly_income
+    if active_type == "balance":
+        return s.annual_balance if active_freq == "annual" else s.quarterly_balance
+    if active_type == "cashflow":
+        return s.annual_cashflow if active_freq == "annual" else s.quarterly_cashflow
+    return s.annual_income if active_freq == "annual" else s.quarterly_income
+
+
 @router.get("/analysis", response_class=HTMLResponse)
-async def analysis_page(request: Request, symbol: str = "AAPL") -> Response:
-    """Destination B: Company Deep Analysis page."""
-    clean_symbol = symbol.strip().upper()[:16] or "AAPL"
+async def analysis_page(
+    request: Request,
+    symbol: str = "AAPL",
+    type: str = "income",
+    freq: str = "annual",
+) -> Response:
+    """Destination B: Company Deep Analysis page with validated fundamental telemetry."""
+    try:
+        clean_symbol = normalize_symbol(symbol)
+        validation_error = None
+    except ValueError as err:
+        return safe_render_template(
+            request,
+            "analysis.html",
+            {
+                "active_page": "analysis",
+                "symbol": symbol.strip()[:16],
+                "validation_error": str(err),
+            },
+        )
+
+    bundle = await fetch_company_analysis_bundle(clean_symbol)
+    active_type = type.lower() if type.lower() in ("income", "balance", "cashflow") else "income"
+    active_freq = freq.lower() if freq.lower() in ("annual", "quarterly") else "annual"
+    statement_periods = _get_statement_periods(bundle, active_type, active_freq)
+    currency = bundle.overview.currency if (bundle.overview and bundle.overview.currency) else (
+        bundle.financial_health.currency if (bundle.financial_health and bundle.financial_health.currency) else "USD"
+    )
+
     context = {
         "active_page": "analysis",
         "symbol": clean_symbol,
-        "company_name": f"{clean_symbol} Fundamental Profile",
-        "sector": "Technology",
+        "bundle": bundle,
+        "currency": currency,
+        "active_type": active_type,
+        "active_freq": active_freq,
+        "statement_periods": statement_periods,
+        "validation_error": None,
     }
     return safe_render_template(request, "analysis.html", context)
+
+
+@router.get("/analysis/statement", response_class=HTMLResponse)
+async def analysis_statement_partial(
+    request: Request,
+    symbol: str = "AAPL",
+    type: str = "income",
+    freq: str = "annual",
+) -> Response:
+    """HTMX partial for statement type and frequency switching."""
+    try:
+        clean_symbol = normalize_symbol(symbol)
+    except ValueError:
+        return safe_render_template(
+            request,
+            "partials/analysis_statements.html",
+            {
+                "symbol": symbol.strip()[:16],
+                "active_type": type.lower(),
+                "active_freq": freq.lower(),
+                "statement_periods": [],
+                "currency": "USD",
+            },
+        )
+
+    bundle = await fetch_company_analysis_bundle(clean_symbol)
+    active_type = type.lower() if type.lower() in ("income", "balance", "cashflow") else "income"
+    active_freq = freq.lower() if freq.lower() in ("annual", "quarterly") else "annual"
+    statement_periods = _get_statement_periods(bundle, active_type, active_freq)
+    currency = bundle.overview.currency if (bundle.overview and bundle.overview.currency) else (
+        bundle.financial_health.currency if (bundle.financial_health and bundle.financial_health.currency) else "USD"
+    )
+
+    return safe_render_template(
+        request,
+        "partials/analysis_statements.html",
+        {
+            "symbol": clean_symbol,
+            "active_type": active_type,
+            "active_freq": active_freq,
+            "statement_periods": statement_periods,
+            "currency": currency,
+        },
+    )
 
 
 @router.get("/compare", response_class=HTMLResponse)

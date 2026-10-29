@@ -1,65 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Company Deep Analysis — QuantAI{% endblock %}
+{% block title %}{{ symbol }} Company Deep Analysis — QuantAI{% endblock %}
 
 {% block content %}
 <div class="destination-page">
+  {# Page Header & Quick Search #}
   <div class="page-header">
     <div class="page-title-group">
-      <div class="hero-badge">Destination B</div>
-      <h1 class="page-title">Company Deep Analysis</h1>
-      <p class="page-subtitle">Fundamental analysis, financial statements, balance sheet health, cash flows, and valuation inputs.</p>
+      <div class="hero-badge">Destination B · Company Deep Analysis</div>
+      <h1 class="page-title">{{ symbol }} Fundamental Profile</h1>
+      <p class="page-subtitle">Multi-period financial statements, balance sheet solvency, cash flows, and deterministic valuation ratios.</p>
     </div>
     <div class="page-search-wrapper">
       {% include "components/search_bar.html" %}
     </div>
   </div>
 
-  {# Selected Company Overview #}
-  <div class="symbol-header-card card">
-    <div class="symbol-title-row">
-      <div class="symbol-identity">
-        <span class="symbol-badge font-mono">{{ symbol }}</span>
-        <h2 class="symbol-company-name">{{ company_name|default('Apple Inc.') }}</h2>
-        <span class="badge badge-neutral">{{ sector|default('Technology') }}</span>
-      </div>
-      <div class="symbol-quote-summary">
-        <span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced Record</span>
+  {% if validation_error %}
+    {# Symbol Format Validation Alert #}
+    <div class="card validation-error-card">
+      <div class="alert-icon">❌</div>
+      <div class="alert-content">
+        <h3 class="alert-heading">Invalid Ticker Symbol</h3>
+        <p class="alert-text">{{ validation_error }}</p>
+        <p class="font-sm text-muted">
+          Supported examples: <code>AAPL</code>, <code>MSFT</code>, <code>SPY</code>, <code>BRK.B</code>, <code>TMPV.NS</code>.
+        </p>
       </div>
     </div>
-    <p class="company-summary-text">
-      Leading global technology company designing personal computers, smartphones, tablets, wearables, and cloud software services.
-    </p>
-  </div>
+  {% else %}
+    {# 1. Company Profile & Overview Header #}
+    {% include "partials/analysis_overview.html" %}
 
-  {# Fundamental Metrics Grid #}
-  <div class="grid grid-4">
-    {% with label="Trailing P/E", value="34.2x", subtext="Industry avg: 28.5x" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
+    {# 2. 4-Card Primary Financial Health Overview #}
+    {% include "partials/analysis_metrics.html" %}
 
-    {% with label="Operating Margin", value="30.7%", subtext="Healthy profitability", change_positive=True, change="+1.2%" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
+    {# 3. Interactive Multi-Year Financial Statement Explorer #}
+    {% include "partials/analysis_statements.html" %}
 
-    {% with label="Free Cash Flow", value="$108.8B", subtext="TTM reported" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
-
-    {% with label="Financial Health", value="Strong (A+)", subtext="Solvency & Liquidity", badge="Verified", badge_type="positive" %}
-      {% include "components/metric_card.html" %}
-    {% endwith %}
-  </div>
-
-  {# Foundation Section for M07/M08 Financial Statement Tables #}
-  <div class="card destination-placeholder-panel">
-    <div class="panel-header">
-      <h3 class="panel-title">Multi-Year Financial Statement Explorer</h3>
-      <span class="badge badge-neutral">Scheduled for M07/M08</span>
+    {# 4. Lower Analysis Grid: Deterministic Ratios & Corporate Governance #}
+    <div class="grid grid-2 analysis-lower-grid">
+      {% include "partials/analysis_ratios.html" %}
+      {% include "partials/analysis_governance.html" %}
     </div>
-    <p class="panel-desc">
-      Normalized multi-period income statements, balance sheets, cash-flow breakdowns, and valuation assumptions will be wired to the verified company analysis pipeline in Milestone 07 and Milestone 08.
-    </p>
-  </div>
+  {% endif %}
 </div>
 {% endblock %}

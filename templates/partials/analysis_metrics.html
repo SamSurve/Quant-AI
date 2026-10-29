@@ -1,0 +1,115 @@
+{# templates/partials/analysis_metrics.html #}
+<div class="grid grid-4 analysis-metrics-grid">
+  {# Card 1: Revenue #}
+  <div class="card metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Revenue (TTM)</span>
+      <span class="badge badge-neutral">Top-Line</span>
+    </div>
+    <div class="metric-body">
+      <div class="metric-value font-mono">
+        {% if bundle.financial_health and bundle.financial_health.revenue is not none %}
+          {{ bundle.financial_health.revenue|compact_currency(bundle.financial_health.currency) }}
+        {% else %}
+          <span class="text-muted font-sm">Unavailable</span>
+        {% endif %}
+      </div>
+      <div class="metric-subtext">
+        {% if bundle.ratios and bundle.ratios.revenue_growth_yoy is not none %}
+          {% set rev_up = bundle.ratios.revenue_growth_yoy >= 0 %}
+          <span class="{{ 'change-positive' if rev_up else 'change-negative' }}">
+            {{ '▲' if rev_up else '▼' }} {{ bundle.ratios.revenue_growth_yoy|percent }} YoY
+          </span>
+        {% else %}
+          Reported fiscal period
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Card 2: Net Income #}
+  <div class="card metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Net Income</span>
+      <span class="badge badge-neutral">Earnings</span>
+    </div>
+    <div class="metric-body">
+      <div class="metric-value font-mono">
+        {% if bundle.financial_health and bundle.financial_health.net_income is not none %}
+          {% set ni_pos = bundle.financial_health.net_income >= 0 %}
+          <span class="{{ 'text-primary' if ni_pos else 'change-negative' }}">
+            {{ bundle.financial_health.net_income|compact_currency(bundle.financial_health.currency) }}
+          </span>
+        {% else %}
+          <span class="text-muted font-sm">Unavailable</span>
+        {% endif %}
+      </div>
+      <div class="metric-subtext">
+        {% if bundle.financial_health and bundle.financial_health.profit_margin is not none %}
+          Profit Margin: <strong>{{ "%.2f%%"|format(bundle.financial_health.profit_margin * 100) }}</strong>
+        {% else %}
+          Net profit after taxes
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Card 3: Free Cash Flow #}
+  <div class="card metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Free Cash Flow</span>
+      <span class="badge badge-neutral">Cash</span>
+    </div>
+    <div class="metric-body">
+      <div class="metric-value font-mono">
+        {% if bundle.financial_health and bundle.financial_health.free_cash_flow is not none %}
+          {% set fcf_pos = bundle.financial_health.free_cash_flow >= 0 %}
+          <span class="{{ 'text-primary' if fcf_pos else 'change-negative' }}">
+            {{ bundle.financial_health.free_cash_flow|compact_currency(bundle.financial_health.currency) }}
+          </span>
+        {% else %}
+          <span class="text-muted font-sm">Unavailable</span>
+        {% endif %}
+      </div>
+      <div class="metric-subtext">
+        {% if bundle.financial_health and bundle.financial_health.operating_margin is not none %}
+          Op. Margin: <strong>{{ "%.2f%%"|format(bundle.financial_health.operating_margin * 100) }}</strong>
+        {% else %}
+          Operating cash flow less capex
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Card 4: Valuation Multiples #}
+  <div class="card metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Valuation Multiples</span>
+      <span class="badge badge-neutral">Multiples</span>
+    </div>
+    <div class="metric-body">
+      <div class="metric-value font-mono font-sm">
+        {% if bundle.financial_health and bundle.financial_health.pe_ratio is not none %}
+          P/E: {{ "%.2fx"|format(bundle.financial_health.pe_ratio) }}
+        {% else %}
+          P/E: N/A
+        {% endif %}
+        ·
+        {% if bundle.financial_health and bundle.financial_health.price_to_sales is not none %}
+          P/S: {{ "%.2fx"|format(bundle.financial_health.price_to_sales) }}
+        {% else %}
+          P/S: N/A
+        {% endif %}
+      </div>
+      <div class="metric-subtext">
+        {% if bundle.financial_health and bundle.financial_health.dividend_yield is not none %}
+          Div. Yield: {{ "%.2f%%"|format(bundle.financial_health.dividend_yield * 100) }}
+        {% elif bundle.financial_health and bundle.financial_health.fiscal_period_end %}
+          Fiscal: {{ bundle.financial_health.fiscal_period_end[:10] }}
+        {% else %}
+          Multiples based on reported data
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

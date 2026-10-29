@@ -1535,3 +1535,295 @@ body {
   margin-bottom: var(--space-xs);
 }
 
+/* --------------------------------------------------------------------------
+   M08 Company Deep Analysis Workspace & Statement Explorer
+   -------------------------------------------------------------------------- */
+.company-desc-wrapper {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.company-summary-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.company-details-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.detail-item {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.link-external {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link-external:hover {
+  text-decoration: underline;
+}
+
+.analysis-metrics-grid {
+  margin-top: var(--space-md);
+}
+
+/* Statement Explorer Panel */
+.statement-explorer-panel {
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.statement-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.statement-type-tabs,
+.statement-freq-tabs {
+  display: inline-flex;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.tab-btn,
+.freq-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover,
+.freq-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.tab-btn.active,
+.freq-btn.active {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.statement-table-wrapper {
+  overflow-x: auto;
+  margin-top: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+}
+
+.statement-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84375rem;
+}
+
+.statement-table th {
+  padding: 10px 14px;
+  background-color: var(--bg-surface);
+  font-weight: 600;
+  font-size: 0.78125rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.statement-table th:first-child {
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.statement-table td {
+  padding: 9px 14px;
+  border-top: 1px solid var(--border-subtle);
+  text-align: right;
+  font-feature-settings: "tnum" 1;
+  color: var(--text-primary);
+}
+
+.statement-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.statement-table tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.row-highlight {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.row-highlight td {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.statement-footer {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.statement-empty-box,
+.governance-empty-box {
+  padding: var(--space-xl);
+  text-align: center;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+}
+
+/* Lower Analysis Grid: Ratios & Governance */
+.analysis-lower-grid {
+  margin-top: var(--space-md);
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+@media (max-width: 900px) {
+  .analysis-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ratios-panel,
+.governance-panel {
+  padding: var(--space-md);
+}
+
+.ratio-groups-grid {
+  margin-top: var(--space-md);
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+@media (max-width: 600px) {
+  .ratio-groups-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ratio-group-card {
+  padding: var(--space-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.ratio-group-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ratio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.ratio-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.ratio-label {
+  color: var(--text-secondary);
+}
+
+.ratio-val {
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+  color: var(--text-primary);
+}
+
+.ratio-meta-note {
+  margin-top: var(--space-xs);
+  font-size: 0.71875rem;
+  line-height: 1.4;
+}
+
+/* Corporate Governance */
+.ceo-highlight-card {
+  padding: var(--space-md);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ceo-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.governance-officers-wrapper {
+  margin-top: var(--space-sm);
+  overflow-x: auto;
+}
+
+.governance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84375rem;
+}
+
+.governance-table th {
+  padding: 8px 12px;
+  background-color: var(--bg-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.governance-table td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.governance-footer {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+
