@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - python-first-refactor
+      - python-parity-work
   pull_request:
     branches:
       - main
