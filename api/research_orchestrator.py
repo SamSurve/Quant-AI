@@ -17,7 +17,7 @@ from agno.exceptions import ModelProviderError
 
 from .ai_providers import ProviderRouter
 from .research_errors import ResearchError
-from .research_logging import log_research_event
+from .research_logging import log_research_event, scrub_secrets
 from .research_schemas import (
     CompanyDeepAnalysisFreshness,
     CompanyDeepAnalysisInterpretation,
@@ -178,9 +178,11 @@ class AnalysisSynthesisService:
                 timeout=AI_TOTAL_BUDGET_SECONDS,
             )
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"AI synthesis timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"AI synthesis timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"AI synthesis unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"AI synthesis unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
 
 class CompanyAnalysisSynthesisService:
@@ -217,9 +219,11 @@ class CompanyAnalysisSynthesisService:
             self._assert_no_numeric_claims(interpretation)
             return interpretation
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"company analysis AI timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"company analysis AI timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"company analysis AI unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"company analysis AI unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
     @staticmethod
     def _assert_no_numeric_claims(interpretation: CompanyDeepAnalysisInterpretation) -> None:
@@ -268,9 +272,11 @@ class ComparisonSynthesisService:
             CompanyAnalysisSynthesisService._assert_no_numeric_claims(interpretation)
             return interpretation
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"comparison AI timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"comparison AI timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"comparison AI unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"comparison AI unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
 
 class ResearchOrchestrator:
