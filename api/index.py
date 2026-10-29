@@ -6,14 +6,12 @@ public same-origin path becomes ``/api/agents/...``.
 """
 
 import logging
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from agno.exceptions import ModelProviderError
 
@@ -24,7 +22,6 @@ from .research_errors import ResearchError
 from .research_orchestrator import AnalysisSynthesisService, ResearchOrchestrator
 from .research_protection import ResearchConcurrencyGuard, SlidingWindowRateLimiter
 from .research_schemas import ErrorCategory, ErrorResponse, ResearchRequest, ResearchResponse
-from .web import router as web_router
 
 
 app = FastAPI(title="QuantAI Finance Agent API", docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -36,12 +33,6 @@ research_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
 research_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
 agentos_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
 agentos_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
-
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
-if STATIC_DIR.is_dir():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-app.include_router(web_router)
 
 
 def _request_id(request: Request) -> str:
@@ -95,9 +86,6 @@ async def request_context_and_body_limit(request: Request, call_next: Any) -> JS
     else:
         response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
-    response.headers["X-Debug-Path"] = str(request.url.path)
-    response.headers["X-Debug-Scope-Path"] = str(request.scope.get("path"))
-    response.headers["X-Debug-Root-Path"] = str(request.scope.get("root_path"))
     return response
 
 
@@ -134,17 +122,6 @@ async def unhandled_error_handler(request: Request, error: Exception) -> JSONRes
     return _error_response(request, ResearchError(ErrorCategory.INTERNAL_ERROR, detail=type(error).__name__))
 
 
-@app.get("/api/index.py", include_in_schema=False)
-@app.get("/api/index", include_in_schema=False)
-def vercel_debug_info(request: Request):
-    return {
-        "url": str(request.url),
-        "path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "headers": dict(request.headers),
-    }
-
-
 def health_payload() -> dict[str, Any]:
     """Return a no-secret readiness response without invoking Groq."""
     return {
@@ -172,6 +149,7 @@ def prefixed_health() -> dict[str, Any]:
     return health_payload()
 
 
+@app.get("/", include_in_schema=False)
 @app.get("/health", include_in_schema=False)
 def prefix_stripped_health() -> dict[str, Any]:
     """Support Vercel function adapters that strip the function's `/api` prefix."""

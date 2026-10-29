@@ -58,7 +58,7 @@ class FXRateService:
             (f"{quote_currency}{base_currency}=X", True),
         ):
             quote_rate = await self._latest_close(symbol)
-            if quote_rate is None or quote_rate <= 0 or not math.isfinite(quote_rate):
+            if quote_rate is None:
                 continue
             rate = 1 / quote_rate if inverse else quote_rate
             if not math.isfinite(rate) or rate <= 0:

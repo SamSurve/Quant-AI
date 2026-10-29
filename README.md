@@ -1,153 +1,72 @@
 # QuantAI Finance Agent
 
-A high-performance, resilient, Python-first financial intelligence and research platform built with **FastAPI**, **Jinja2**, **HTMX**, and custom vanilla CSS.
+This repository contains the provider-resilient **QuantAI Finance Agent** and its **Analyst’s Ledger** frontend. The browser application is a Vite/React dashboard and the research API is an AgentOS application exposed through a Vercel-compatible FastAPI function.
 
-All primary financial data—including quotes, multi-period technical charts, audited financial statements, balance sheets, cash flows, corporate governance rosters, and side-by-side peer comparisons—are served deterministically via Yahoo Finance without requiring external AI API keys or heavy Node/React build steps. Optional AI analyst synthesis is provided through a fault-tolerant multi-provider router (Groq primary → Groq secondary → OpenRouter fallback).
-
----
-
-## Architecture Overview
-
-```
-                      ┌────────────────────────────────────────┐
-                      │            Browser Client              │
-                      │  (HTML5 + HTMX + Vanilla CSS / JS)     │
-                      └──────────────────┬─────────────────────┘
-                                         │ HTTP / HTMX
-                                         ▼
-                      ┌────────────────────────────────────────┐
-                      │          FastAPI Application           │
-                      │             (api/index.py)             │
-                      ├──────────────────┬─────────────────────┤
-                      │  Server Routes   │     Static Assets   │
-                      │   (api/web.py)   │    (/static/css,js) │
-                      └────────┬─────────┴─────────────────────┘
-                               │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
-┌───────────────────────────────┐   ┌───────────────────────────────┐
-│     Deterministic Engines     │   │      AI Provider Router       │
-│  - Entity Resolution          │   │  - Groq Primary               │
-│  - Market Pulse & OHLCV       │   │  - Groq Secondary             │
-│  - Statements & Ratios        │   │  - OpenRouter Fallback        │
-│  - Peer Comparison Matrix     │   │  - Circuit Breaker & Cooldown │
-└───────────────────────────────┘   └───────────────────────────────┘
-```
-
-### Component Directory
+## What is included
 
 | Component | Location | Role |
 | --- | --- | --- |
-| **FastAPI Entrypoint** | `api/index.py` | Production application mounting web routes, static files, rate limits, and health probes. |
-| **Web & UI Router** | `api/web.py` | Jinja2 server-rendered pages, HTMX partial responses, formatting filters, and UI handlers. |
-| **Templates** | `templates/` | Modular Jinja2 layouts (`base.html`), destinations (`market.html`, `analysis.html`, `compare.html`, `research.html`), and HTMX partials. |
-| **Static Assets** | `static/` | High-contrast financial design system (`css/main.css`), minimal client JS (`js/app.js`), and vendor HTMX (`js/htmx.min.js`). |
-| **Research Orchestrator** | `api/research_orchestrator.py` | Typed BFF unifying entity resolution, market pulse, history, financial metrics, and structured AI synthesis. |
-| **Market Intelligence** | `api/market_intelligence_services.py` | In-memory cached Yahoo/yfinance quotes, multi-period charts (1D to 5Y), event radars, and deterministic signal algorithms. |
-| **Company Deep Analysis** | `api/company_analysis_services.py` | Annual/quarterly balance sheets, income statements, cash flows, financial health ratios, and corporate governance rosters. |
-| **Company Comparison** | `api/comparison_services.py` | Multi-ticker side-by-side metric matrix, currency conversion guards, period-alignment verification, and scoring engines. |
-| **AI Provider Engine** | `api/ai_providers.py` | Multi-tier failover (Groq Primary → Groq Secondary → OpenRouter) with secret scrubbing and circuit breakers. |
-| **Vercel Runtime** | `vercel.json` | Pure Python serverless configuration routing all traffic directly to `api/index.py` with asset bundling. |
+| Analyst’s Ledger | `client/` | Responsive React dashboard, price cards, chart, news, analysis, loading, and error states. |
+| Vercel API function | `api/index.py` | Same-origin FastAPI entrypoint mounted under `/api`. |
+| QuantAI provider engine | `api/ai_providers.py` | Server-only Groq-primary, Groq-secondary, OpenRouter Ox Alpha sequential fallback with bounded per-provider attempts, cooldown health, and clean unavailability errors. |
+| Typed research BFF | `api/research_orchestrator.py` | Deterministic entity, market pulse, efficient OHLCV history, signals, news, events, and best-effort structured AI interpretation. |
+| Market Intelligence adapters | `api/market_intelligence_services.py` | Cache-aware Yahoo/yfinance market pulse, history, event radar, and transparent deterministic signal methodology. |
+| Company Deep Analysis adapters | `api/company_analysis_services.py` | Cache-aware source-provided company profile, leadership, annual financial-statement, cash-flow, balance-sheet, and valuation-input extraction. |
+| Company Comparison services | `api/comparison_services.py` | Independent A/B acquisition, source-transparent metric normalization, currency/period protection, deterministic strength/momentum scores, category outcomes, and confidence. |
+| QuantAI finance agent | `api/groq_finance_agent.py` | Preserved AgentOS conversational compatibility with real YFinance/DDGS research tools and the provider router. |
+| Vercel configuration | `vercel.json` | Vite build output, SPA fallback excluding `/api`, function duration, and no-cache API headers. |
 
----
+## Local development
 
-## Primary Destinations & Research Capabilities
-
-1. **Market Intelligence (`/` or `/symbol/:symbol`)**:
-   Real-time quote summary, key statistics, interactive SVG price charts across 6 time horizons (1D, 5D, 1M, 6M, 1Y, 5Y), explainable technical signal indicators, company news, and upcoming corporate event calendar.
-2. **Company Deep Analysis (`/analysis` or `/symbol/:symbol/analysis`)**:
-   Audited multi-year financial statements (Income Statement, Balance Sheet, Cash Flow) across Annual and Quarterly frequencies, key valuation and solvency ratios, and corporate leadership governance data.
-3. **Company Comparison (`/compare`)**:
-   Side-by-side metric matrix comparing any two tickers, with currency conversion awareness, fiscal period alignment detection, category outcome indicators, and deterministic financial strength and momentum scorecards.
-4. **AI Research Desk (`/research`)**:
-   Structured synthesis across 4 operational modes (`standard`, `company_deep_analysis`, `market_intelligence`, `company_comparison`) with full provenance audit trails, source citations, and honest graceful fallbacks when AI keys are absent.
-
----
-
-## Local Development & Quickstart
-
-### Prerequisites
-- Python 3.12+
-- Git
-
-### 1. Clone & Set Up Virtual Environment
+For the quickest two-terminal workflow, start the AgentOS server and Vite frontend separately:
 
 ```bash
-git clone https://github.com/SamSurve/Quant-AI.git
-cd Quant-AI
-
-python -m venv .venv
-
-# On Linux/macOS:
+# Terminal 1
+python3 -m venv .venv
 source .venv/bin/activate
-# On Windows PowerShell:
-.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+# Set GROQ_API_KEY_PRIMARY and GROQ_MODEL_PRIMARY.
+# Optionally set GROQ_API_KEY_SECONDARY/GROQ_MODEL_SECONDARY and OPENROUTER_API_KEY/OPENROUTER_MODEL.
+# Provider order is fixed: Groq primary → Groq secondary → OpenRouter Ox Alpha.
+# Optionally override order with a duplicate-free permutation in AI_PROVIDER_ORDER,
+# for example: groq_primary,groq_secondary,openrouter_ox_alpha.
+python -m uvicorn api.index:app --host 127.0.0.1 --port 7777
 
-pip install -r requirements.txt pytest httpx
+# Terminal 2
+pnpm install
+pnpm dev
 ```
 
-### 2. Configure Environment (Optional)
+The Vite development server proxies browser requests from `/api/*` to the local AgentOS server, so the frontend retains the same API URL in development and deployment.
 
-Copy the configuration template:
+## Reliability check
+
+Run the deterministic provider failover regression test without provider credentials or quota usage:
+
 ```bash
-cp .env.example .env
-```
-> **Note**: All financial data, charts, statements, and comparison calculations work **100% out of the box** without any API keys. To enable AI analyst synthesis, populate `GROQ_API_KEY_PRIMARY` in `.env`.
-
-### 3. Run the Development Server
-
-```bash
-uvicorn api.index:app --reload --host 127.0.0.1 --port 8000
-```
-Open your browser to `http://127.0.0.1:8000`.
-
----
-
-## Operational Health & Diagnostic Probes
-
-The application provides dedicated operational endpoints for container and serverless health checks:
-
-- `GET /health/live`: Liveness probe verifying process responsiveness (`{"status": "live"}`).
-- `GET /health/ready`: Readiness probe verifying templates, static directories, and provider subsystems.
-- `GET /api/health`: Diagnostic health report with provider configuration status (never leaking API keys).
-
----
-
-## Automated Testing & CI
-
-QuantAI features a comprehensive automated test suite spanning backend calculations, failover mechanisms, UI templates, HTMX partials, cross-destination integration, and production readiness.
-
-Run the full test suite:
-```bash
-pytest -v
+python tests/test_provider_failover.py
+python tests/test_typed_research_backend.py
+python tests/test_market_intelligence.py
+python tests/test_company_deep_analysis.py
+python tests/test_company_comparison.py
 ```
 
-Run specific test modules:
-```bash
-# Web & UI regression tests
-pytest tests/test_web_foundation.py tests/test_market_ui.py tests/test_company_ui.py tests/test_comparison_ui.py tests/test_research_ui.py tests/test_web_integration.py
+## Typed research API
 
-# Backend calculation & provider hardening tests
-pytest tests/test_ai_backend_hardening.py tests/test_company_analysis_backend.py tests/test_comparison_backend_hardening.py tests/test_market_backend_hardening.py
+`POST /api/research` remains compatible with `{ "query": "AAPL", "include_analysis": true }`. The dashboard uses `{ "query": "AAPL", "include_analysis": true, "mode": "market_intelligence" }` for **Build brief**. This additive mode retains the established root fields and adds a typed `market_intelligence` section containing market pulse, normalized intraday/daily OHLCV history, deterministic signal, normalized/deduplicated news, source-returned event radar, per-service freshness, sources, warnings, and an optional structured executive brief. AgentOS remains available for conversational chat at `/api/agents/groq-finance-agent/runs`.
 
-# Deployment and production readiness tests
-pytest tests/test_deployment_readiness.py tests/test_production_readiness.py
-```
+The Market Intelligence signal is an explainable observation layer based on price momentum, moving-average alignment, volume context, and disclosed realized volatility. It is not a forecast, investment recommendation, or substitute for independent review. Price and source fields are deterministic; the provider engine can only contribute the separately validated executive interpretation. When AI is unavailable, the endpoint returns deterministic data with `AI_UNAVAILABLE` as a partial-result warning instead of inventing an analysis.
 
-Automated CI runs via GitHub Actions on every push and pull request to `main` and `python-first-refactor` (`.github/workflows/ci.yml`).
+`POST /api/research` also supports `{ "query": "AAPL", "include_analysis": true, "mode": "company_deep_analysis" }`. The additive `company_deep_analysis` section separates factual `company_overview`, `financial_health`, `governance`, `market_context`, normalized news/events, and source/freshness records from the optional `analyst_interpretation`. It uses source-provided Yahoo/yfinance profile and annual-statement fields only; unavailable values remain null. The current MVP deliberately returns an explicit unavailable competitor-evidence record rather than manufacturing peer, market-share, management-change, or regulatory claims. Valuation classification and risk/catalyst language are AI interpretations, not factual observations, recommendations, or predictions.
 
----
+`POST /api/research` additionally accepts the comparison-only body `{ "mode": "company_comparison", "company_a": "AAPL", "company_b": "MSFT", "include_analysis": true }`. It resolves both inputs independently and rejects absent, duplicate, invalid, or ambiguous company selections rather than silently selecting a candidate. The additive `company_comparison` section returns explicit A/B identities, independent safe-side status/freshness, A/B market and financial records, news/events, metric rows, source provenance, deterministic financial-strength and momentum scores, category outcomes, confidence, and an optional `analyst_interpretation`.
 
-## Production Deployment (Vercel)
+Comparison winners are only emitted when both values are available and safe to compare. Monetary and per-share fields are never converted across currencies; differing currencies produce an explicit `CURRENCY_COMPARISON_UNAVAILABLE` note without a winner or difference. Absolute-value financial metrics with only partially aligned fiscal periods also remain `INSUFFICIENT_DATA`; ratio and percentage metrics retain their disclosed period-alignment state. The overall advantage is deliberately withheld when coverage, alignment, or category separation is insufficient. The optional AI brief sees compact validated context only, cannot author numerical facts, events, URLs, competitors, market-share claims, scores, or winners, and is rejected into a safe `AI_UNAVAILABLE` warning if it contains a numeric claim.
 
-The repository is configured for direct deployment on Vercel using the Python runtime:
+The Vercel MVP uses a small process-local TTL cache and in-flight request deduplication. This improves repeated requests within a warm function instance but is not a shared multi-instance cache. The route also applies a 8 KiB request-body limit, a 10-request-per-minute anonymous warm-instance limit, and a four-request warm-instance concurrency guard. These are pragmatic safeguards, not a substitute for a managed shared rate-limit/cache service.
 
-- `vercel.json` configures `api/index.py` as the serverless function handler, bundles `templates/**` and `static/**`, and rewrites all incoming traffic to FastAPI.
-- `.python-version` pins the runtime to Python 3.12.
-- Configure server-only environment variables in the Vercel Dashboard:
-  - `GROQ_API_KEY_PRIMARY` (optional)
-  - `GROQ_API_KEY_SECONDARY` (optional)
-  - `OPENROUTER_API_KEY` (optional)
-  - `AI_PROVIDER_ORDER` (optional)
+## Vercel
 
-*Obsolete legacy Vite/React artifacts have been completely retired; the application operates 100% as a pure Python-first system.*
+Read [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for the exact environment variables, GitHub import workflow, Vercel project settings, preview checks, and deployment validation steps.
+
+> `GROQ_API_KEY_PRIMARY`, `GROQ_API_KEY_SECONDARY`, and `OPENROUTER_API_KEY` are server-only. Do not commit key values, do not use a `VITE_` prefix for any provider setting, and configure them through local process environment variables or Vercel Environment Variables.

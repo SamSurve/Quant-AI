@@ -1,13 +1,6 @@
 # Dependencies
 **/node_modules
 .pnpm-store/
-.venv/
-venv/
-
-# Coordinator local runtime state and logs
-tools/coordinator/state.json
-tools/coordinator/*.log
-tools/coordinator/*.txt
 
 # Build outputs
 dist/

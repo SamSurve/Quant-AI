@@ -96,28 +96,17 @@ class ResearchRequest(BaseModel):
     @model_validator(mode="after")
     def validate_mode_inputs(self) -> "ResearchRequest":
         if self.mode == ResearchMode.COMPANY_COMPARISON:
-            raw_a = self.company_a or ""
-            raw_b = self.company_b or ""
-            for raw, label in ((raw_a, "Company A"), (raw_b, "Company B")):
-                if any(char in raw for char in ("<", ">", "\r", "\n", "\t")) or any(ord(c) == 0 for c in raw):
-                    raise ValueError(f"Invalid characters in {label}: {raw!r}")
-            company_a = " ".join(raw_a.split())
-            company_b = " ".join(raw_b.split())
+            company_a = " ".join((self.company_a or "").split())
+            company_b = " ".join((self.company_b or "").split())
             if not company_a or not company_b:
                 raise ValueError("Two company names or ticker symbols are required for comparison.")
             if company_a.upper() == company_b.upper():
                 raise ValueError("Select two different companies for comparison.")
-            if len(company_a) > 80:
-                raise ValueError("Company A identifier exceeds maximum length")
-            if len(company_b) > 80:
-                raise ValueError("Company B identifier exceeds maximum length")
             self.company_a = company_a
             self.company_b = company_b
             return self
         if not self.query:
             raise ValueError("A company name or ticker is required.")
-        if any(char in self.query for char in ("<", ">", "\r", "\n", "\t")) or any(ord(c) == 0 for c in self.query):
-            raise ValueError(f"Invalid characters in query: {self.query!r}")
         return self
 
 
