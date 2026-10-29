@@ -17,7 +17,7 @@
 
     {# Supported Period Selectors with HTMX #}
     <div class="chart-period-selector" role="group" aria-label="Chart Period Selection">
-      {% for p in ['1D', '1W', '1M', '3M', '1Y', '5Y'] %}
+      {% for p in ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y'] %}
         <button
           type="button"
           class="period-btn {% if active_period == p %}active{% endif %}"
