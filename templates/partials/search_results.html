@@ -1,0 +1,37 @@
+{# HTMX Partial Search Results Fragment #}
+{% if not query %}
+  <div class="search-empty-prompt">
+    <span class="search-hint-title">Popular Symbols</span>
+    <div class="popular-symbols-grid">
+      <a href="/market?symbol=SPY" class="popular-symbol-pill font-mono"><strong>SPY</strong> S&P 500 ETF</a>
+      <a href="/market?symbol=QQQ" class="popular-symbol-pill font-mono"><strong>QQQ</strong> Invesco QQQ</a>
+      <a href="/market?symbol=AAPL" class="popular-symbol-pill font-mono"><strong>AAPL</strong> Apple Inc.</a>
+      <a href="/market?symbol=MSFT" class="popular-symbol-pill font-mono"><strong>MSFT</strong> Microsoft</a>
+      <a href="/market?symbol=NVDA" class="popular-symbol-pill font-mono"><strong>NVDA</strong> NVIDIA</a>
+      <a href="/market?symbol=TSLA" class="popular-symbol-pill font-mono"><strong>TSLA</strong> Tesla</a>
+    </div>
+  </div>
+{% elif candidates %}
+  <ul class="search-candidates-list" role="listbox">
+    {% for candidate in candidates %}
+      <li class="search-candidate-item" role="option">
+        <div class="candidate-info">
+          <span class="candidate-symbol font-mono">{{ candidate.symbol }}</span>
+          <span class="candidate-name">{{ candidate.name }}</span>
+          {% if candidate.exchange %}<span class="candidate-exchange font-mono">{{ candidate.exchange }}</span>{% endif %}
+        </div>
+        <div class="candidate-actions">
+          <a href="/market?symbol={{ candidate.symbol }}" class="btn btn-sm btn-secondary" title="View Market Intelligence">Market</a>
+          <a href="/analysis?symbol={{ candidate.symbol }}" class="btn btn-sm btn-secondary" title="Deep Analysis">Analysis</a>
+          <a href="/compare?s1={{ candidate.symbol }}&s2=MSFT" class="btn btn-sm btn-secondary" title="Compare against peer">Compare</a>
+          <a href="/research?symbol={{ candidate.symbol }}" class="btn btn-sm btn-primary" title="AI Research Desk">Research</a>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="search-no-results">
+    <p>No securities found matching <strong>"{{ query }}"</strong>.</p>
+    <p class="search-no-results-hint">Try searching by ticker symbol (e.g. <code>AAPL</code>, <code>MSFT</code>) or common company name.</p>
+  </div>
+{% endif %}

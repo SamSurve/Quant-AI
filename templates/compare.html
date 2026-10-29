@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Company Comparison — QuantAI{% endblock %}
+
+{% block content %}
+<div class="destination-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <div class="hero-badge">Destination C</div>
+      <h1 class="page-title">Company Comparison</h1>
+      <p class="page-subtitle">Evidence-based side-by-side comparison, currency normalization, and peer benchmarking.</p>
+    </div>
+    <div class="page-search-wrapper">
+      {% include "components/search_bar.html" %}
+    </div>
+  </div>
+
+  {# Comparison Selector Header #}
+  <div class="comparison-pair-header card">
+    <div class="comparison-entity entity-1">
+      <span class="symbol-badge font-mono">{{ s1|default('AAPL') }}</span>
+      <span class="entity-name">{{ s1_name|default('Apple Inc.') }}</span>
+    </div>
+    <div class="comparison-vs font-mono">VS</div>
+    <div class="comparison-entity entity-2">
+      <span class="symbol-badge font-mono">{{ s2|default('MSFT') }}</span>
+      <span class="entity-name">{{ s2_name|default('Microsoft Corporation') }}</span>
+    </div>
+  </div>
+
+  {# Comparison Matrix Component #}
+  <div class="table-container">
+    <table class="data-table" aria-label="Company Comparison Matrix">
+      <thead>
+        <tr>
+          <th>Metric / Attribute</th>
+          <th class="numeric font-mono">{{ s1|default('AAPL') }}</th>
+          <th class="numeric font-mono">{{ s2|default('MSFT') }}</th>
+          <th>Comparison Assessment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Market Capitalization</strong></td>
+          <td class="numeric font-mono">$3.52T</td>
+          <td class="numeric font-mono">$3.18T</td>
+          <td><span class="badge badge-positive">{{ s1|default('AAPL') }} Larger</span></td>
+        </tr>
+        <tr>
+          <td><strong>Operating Margin</strong></td>
+          <td class="numeric font-mono">30.7%</td>
+          <td class="numeric font-mono">44.6%</td>
+          <td><span class="badge badge-positive">{{ s2|default('MSFT') }} Higher</span></td>
+        </tr>
+        <tr>
+          <td><strong>Forward P/E Ratio</strong></td>
+          <td class="numeric font-mono">29.4x</td>
+          <td class="numeric font-mono">31.2x</td>
+          <td><span class="badge badge-info">Comparable Valuation</span></td>
+        </tr>
+        <tr>
+          <td><strong>Revenue Growth (YoY)</strong></td>
+          <td class="numeric font-mono">+6.1%</td>
+          <td class="numeric font-mono">+16.0%</td>
+          <td><span class="badge badge-positive">{{ s2|default('MSFT') }} Faster</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# Foundation Section for M09/M10 Comparison Engine #}
+  <div class="card destination-placeholder-panel">
+    <div class="panel-header">
+      <h3 class="panel-title">Algorithmic Peer Comparison Engine</h3>
+      <span class="badge badge-neutral">Scheduled for M09/M10</span>
+    </div>
+    <p class="panel-desc">
+      Automated period alignment, cross-currency foreign exchange conversion, dynamic category scoring, and evidence-grounded comparative thesis generation will be connected in Milestone 09 and Milestone 10.
+    </p>
+  </div>
+</div>
+{% endblock %}

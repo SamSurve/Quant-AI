@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}AI Research Desk — QuantAI{% endblock %}
+
+{% block content %}
+<div class="destination-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <div class="hero-badge">Destination D</div>
+      <h1 class="page-title">Dedicated AI Research Desk</h1>
+      <p class="page-subtitle">Full-workspace financial research inquiries, structured thesis synthesis, and verifiable evidence attribution.</p>
+    </div>
+  </div>
+
+  {# Dedicated Research Query Box (No Floating Chatbot) #}
+  <div class="card research-input-panel">
+    <form class="research-form" onsubmit="event.preventDefault();">
+      <label for="research-query-input" class="research-label">Enter Financial Research Query or Ticker Thesis</label>
+      <div class="research-input-row">
+        <input 
+          type="text" 
+          id="research-query-input" 
+          name="query" 
+          class="research-input font-mono" 
+          placeholder="e.g. Analyze NVDA competitive moat in AI data centers and valuation risks..."
+          value="{{ query|default('') }}"
+        >
+        <button type="submit" class="btn btn-primary" id="btn-submit-research">Execute Research</button>
+      </div>
+      <div class="research-hints">
+        <span class="text-muted">Multi-provider failover: Groq · OpenRouter · OpenAI · Deterministic Sourced Evidence</span>
+      </div>
+    </form>
+  </div>
+
+  {# Evidence & Synthesis Grid #}
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="panel-header">
+        <h3 class="panel-title">Sourced Evidence Stream</h3>
+        <span class="badge badge-info badge-pill"><span class="badge-dot"></span> Sourced</span>
+      </div>
+      <p class="panel-desc">Real-time market quotes, earnings transcripts, SEC filings, and financial news citations.</p>
+      <div class="evidence-list-placeholder">
+        <div class="alert alert-info">
+          <div class="alert-icon">ℹ</div>
+          <div class="alert-body">
+            <div class="alert-title">Evidence-Grounded Policy</div>
+            <div class="alert-message">AI research outputs must cite verifiable data sources. Unsubstantiated claims are rejected.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-header">
+        <h3 class="panel-title">Structured Analysis & Thesis</h3>
+        <span class="badge badge-neutral">Ready for M11/M12</span>
+      </div>
+      <p class="panel-desc">Synthesized executive summary, key growth drivers, risks, and valuation inputs.</p>
+      <div class="thesis-placeholder">
+        <div class="skeleton" style="width: 90%; height: 20px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="width: 75%; height: 20px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="width: 85%; height: 20px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
