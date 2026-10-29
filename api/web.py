@@ -19,7 +19,11 @@ from .research_schemas import (
     IdentifierConfidence,
     ServiceState,
     HistoryPeriod,
+    ResearchMode,
+    ResearchRequest,
 )
+from .research_errors import ResearchError
+from .research_orchestrator import ResearchOrchestrator
 from .market_intelligence_services import (
     normalize_symbol,
     slice_history,
@@ -89,11 +93,51 @@ def format_compact_currency(val: float | int | None, currency: str = "USD") -> s
     return f"{neg}{sym}{abs_val:,.2f}"
 
 
+METRIC_LABELS = {
+    "market_cap": "Market Capitalization",
+    "revenue": "Total Revenue",
+    "net_income": "Net Income",
+    "eps": "Diluted EPS",
+    "profit_margin": "Net Profit Margin",
+    "operating_margin": "Operating Margin",
+    "free_cash_flow": "Free Cash Flow",
+    "total_cash": "Cash & Equivalents",
+    "total_debt": "Total Debt",
+    "pe_ratio": "Price / Earnings (P/E)",
+    "price_to_sales": "Price / Sales (P/S)",
+    "dividend_yield": "Dividend Yield",
+    "momentum_score": "Market Momentum",
+}
+
+
+def format_metric_label(key: str) -> str:
+    return METRIC_LABELS.get(key, key.replace("_", " ").title())
+
+
+def format_metric_value(val: float | None, unit: str, curr: str | None = "USD") -> str:
+    if val is None or not isinstance(val, (int, float)) or not math.isfinite(val):
+        return "—"
+    if unit == "currency":
+        return format_compact_currency(val, curr or "USD")
+    elif unit == "percentage":
+        return f"{val * 100:.2f}%" if abs(val) < 1.0 else f"{val:.2f}%"
+    elif unit == "per_share":
+        prefix = f"{curr} " if curr and curr != "USD" else "$"
+        return f"{prefix}{val:.2f}"
+    elif unit == "ratio":
+        return f"{val:.2f}x"
+    elif unit == "score":
+        return f"{round(val)}/100"
+    return str(val)
+
+
 # Register template filters
 templates.env.filters["currency"] = format_currency
 templates.env.filters["compact_currency"] = format_compact_currency
 templates.env.filters["percent"] = format_percent
 templates.env.filters["large_num"] = format_large_number
+templates.env.filters["metric_label"] = format_metric_label
+templates.env.filters["metric_value"] = format_metric_value
 
 
 def generate_chart_svg_data(points: list, width: int = 800, height: int = 260) -> dict[str, Any] | None:
@@ -485,18 +529,70 @@ async def analysis_statement_partial(
     )
 
 
+def is_htmx_request(request: Request) -> bool:
+    """Check if incoming request is an HTMX request."""
+    return request.headers.get("HX-Request") == "true" or request.headers.get("hx-request") == "true"
+
+
+_COMPARISON_ORCHESTRATOR = None
+
+
+def _get_comparison_orchestrator() -> ResearchOrchestrator:
+    global _COMPARISON_ORCHESTRATOR
+    if _COMPARISON_ORCHESTRATOR is not None:
+        return _COMPARISON_ORCHESTRATOR
+    try:
+        import api.index as idx
+        if hasattr(idx, "research_orchestrator") and idx.research_orchestrator:
+            return idx.research_orchestrator
+    except (ImportError, AttributeError):
+        pass
+    _COMPARISON_ORCHESTRATOR = ResearchOrchestrator()
+    return _COMPARISON_ORCHESTRATOR
+
+
 @router.get("/compare", response_class=HTMLResponse)
 async def compare_page(request: Request, s1: str = "AAPL", s2: str = "MSFT") -> Response:
     """Destination C: Company Comparison page."""
-    clean_s1 = s1.strip().upper()[:16] or "AAPL"
-    clean_s2 = s2.strip().upper()[:16] or "MSFT"
+    clean_s1 = (s1 or "").strip().upper()[:16]
+    clean_s2 = (s2 or "").strip().upper()[:16]
+
+    error_msg: str | None = None
+    if not clean_s1 or not clean_s2:
+        error_msg = "Please provide two company ticker symbols to compare."
+    elif clean_s1 == clean_s2:
+        error_msg = f"Cannot compare company '{clean_s1}' against itself. Please select two distinct companies."
+    elif any(char in clean_s1 or char in clean_s2 for char in ("<", ">", "\r", "\n", "\t")) or any(ord(c) == 0 for c in (clean_s1 + clean_s2)):
+        error_msg = "Invalid ticker symbol format. Please enter valid stock symbols (e.g. AAPL, MSFT)."
+
+    report = None
+    if not error_msg:
+        try:
+            orchestrator = _get_comparison_orchestrator()
+            research_req = ResearchRequest(
+                mode=ResearchMode.COMPANY_COMPARISON,
+                company_a=clean_s1,
+                company_b=clean_s2,
+                include_analysis=True,
+            )
+            response = await orchestrator.research(f"web-comp-{clean_s1}-{clean_s2}", research_req)
+            report = response.company_comparison
+        except ResearchError as err:
+            error_msg = f"Comparison Error: {err.detail}"
+        except Exception as exc:
+            LOGGER.warning("Comparison execution error for %s vs %s: %s", clean_s1, clean_s2, exc)
+            error_msg = f"Unable to compare {clean_s1} and {clean_s2} at this time. Please verify the symbols and try again."
+
     context = {
         "active_page": "compare",
         "s1": clean_s1,
         "s2": clean_s2,
-        "s1_name": f"{clean_s1} Corp",
-        "s2_name": f"{clean_s2} Corp",
+        "report": report,
+        "error": error_msg,
     }
+
+    if is_htmx_request(request):
+        return safe_render_template(request, "partials/compare_content.html", context)
     return safe_render_template(request, "compare.html", context)
 
 

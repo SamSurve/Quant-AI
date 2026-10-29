@@ -1,0 +1,120 @@
+{# Deterministic Scoring Summaries: Financial Strength & Momentum #}
+<div class="grid grid-2 score-cards-grid">
+  {# Financial Strength Score Card #}
+  <div class="card score-summary-card">
+    <div class="score-card-header">
+      <div class="score-header-title">
+        <h4 class="score-title font-semibold">Financial Strength Score</h4>
+        <span class="badge badge-neutral font-mono">0–100 Normalized</span>
+      </div>
+      <div class="score-winner-pill">
+        {% if report.financial_strength.winner.value == 'A' %}
+          <span class="badge badge-positive">{{ report.company_a.ticker }} Stronger</span>
+        {% elif report.financial_strength.winner.value == 'B' %}
+          <span class="badge badge-info">{{ report.company_b.ticker }} Stronger</span>
+        {% elif report.financial_strength.winner.value == 'TIE' %}
+          <span class="badge badge-neutral">Tied Strength</span>
+        {% else %}
+          <span class="badge badge-warning">Insufficient Evidence</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="score-comparison-row">
+      <div class="score-entity-block">
+        <span class="score-entity-ticker font-mono">{{ report.company_a.ticker }}</span>
+        <span class="score-number font-mono {% if report.financial_strength.winner.value == 'A' %}text-positive{% endif %}">
+          {% if report.financial_strength.company_a_score is not none %}
+            {{ report.financial_strength.company_a_score }}/100
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+      <div class="score-divider font-mono text-muted">vs</div>
+      <div class="score-entity-block">
+        <span class="score-entity-ticker font-mono">{{ report.company_b.ticker }}</span>
+        <span class="score-number font-mono {% if report.financial_strength.winner.value == 'B' %}text-positive{% endif %}">
+          {% if report.financial_strength.company_b_score is not none %}
+            {{ report.financial_strength.company_b_score }}/100
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    {# Contributing Factors #}
+    <div class="score-factors-box">
+      <div class="factors-label text-muted">Observed Balance Sheet & Cash Drivers:</div>
+      <ul class="factors-list">
+        {% for factor in report.financial_strength.factors_a %}
+        <li class="factor-item font-mono text-xs"><span class="factor-dot dot-a"></span>{{ report.company_a.ticker }}: {{ factor }}</li>
+        {% endfor %}
+        {% for factor in report.financial_strength.factors_b %}
+        <li class="factor-item font-mono text-xs"><span class="factor-dot dot-b"></span>{{ report.company_b.ticker }}: {{ factor }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="score-methodology text-muted">{{ report.financial_strength.methodology }}</div>
+  </div>
+
+  {# Market Momentum Score Card #}
+  <div class="card score-summary-card">
+    <div class="score-card-header">
+      <div class="score-header-title">
+        <h4 class="score-title font-semibold">Market Momentum Score</h4>
+        <span class="badge badge-neutral font-mono">Technical Signals</span>
+      </div>
+      <div class="score-winner-pill">
+        {% if report.momentum.winner.value == 'A' %}
+          <span class="badge badge-positive">{{ report.company_a.ticker }} Leading</span>
+        {% elif report.momentum.winner.value == 'B' %}
+          <span class="badge badge-info">{{ report.company_b.ticker }} Leading</span>
+        {% elif report.momentum.winner.value == 'TIE' %}
+          <span class="badge badge-neutral">Tied Momentum</span>
+        {% else %}
+          <span class="badge badge-warning">Unavailable</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="score-comparison-row">
+      <div class="score-entity-block">
+        <span class="score-entity-ticker font-mono">{{ report.company_a.ticker }}</span>
+        <span class="score-number font-mono {% if report.momentum.winner.value == 'A' %}text-positive{% endif %}">
+          {% if report.momentum.company_a_score is not none %}
+            {{ report.momentum.company_a_score }}/100
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+      <div class="score-divider font-mono text-muted">vs</div>
+      <div class="score-entity-block">
+        <span class="score-entity-ticker font-mono">{{ report.company_b.ticker }}</span>
+        <span class="score-number font-mono {% if report.momentum.winner.value == 'B' %}text-positive{% endif %}">
+          {% if report.momentum.company_b_score is not none %}
+            {{ report.momentum.company_b_score }}/100
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    {# Contributing Factors #}
+    <div class="score-factors-box">
+      <div class="factors-label text-muted">Observed Price Trend & Volume Indicators:</div>
+      <ul class="factors-list">
+        {% for factor in report.momentum.factors_a %}
+        <li class="factor-item font-mono text-xs"><span class="factor-dot dot-a"></span>{{ report.company_a.ticker }}: {{ factor }}</li>
+        {% endfor %}
+        {% for factor in report.momentum.factors_b %}
+        <li class="factor-item font-mono text-xs"><span class="factor-dot dot-b"></span>{{ report.company_b.ticker }}: {{ factor }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="score-methodology text-muted">{{ report.momentum.methodology }}</div>
+  </div>
+</div>

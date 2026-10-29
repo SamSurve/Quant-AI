@@ -1,0 +1,67 @@
+{# Overall Advantage & Confidence Assessment Banner #}
+<div class="card compare-assessment-banner">
+  <div class="assessment-header-row">
+    <div class="assessment-title-group">
+      <div class="section-tag font-mono">DETERMINISTIC A/B ASSESSMENT</div>
+      <h3 class="assessment-main-title">
+        {% if report.overall_advantage.value == 'A' %}
+          <span class="advantage-highlight text-positive">{{ report.company_a.ticker }}</span> Holds Comparative Advantage
+        {% elif report.overall_advantage.value == 'B' %}
+          <span class="advantage-highlight text-positive">{{ report.company_b.ticker }}</span> Holds Comparative Advantage
+        {% elif report.overall_advantage.value == 'TIE' %}
+          <span class="advantage-highlight text-neutral">Balanced Profile</span> — No Significant Deterministic Advantage
+        {% else %}
+          <span class="advantage-highlight text-warning">Limited Comparability</span> — Insufficient Data for Overall Advantage
+        {% endif %}
+      </h3>
+      <p class="assessment-explanation text-muted">{{ report.overall_explanation }}</p>
+    </div>
+
+    {# Confidence Gauge / Badge #}
+    <div class="assessment-confidence-box">
+      <span class="confidence-label text-muted">Comparison Confidence</span>
+      <div class="confidence-badge-row">
+        {% set lvl = report.comparison_confidence.level | lower %}
+        {% if lvl == 'high' %}
+          <span class="badge badge-positive badge-pill"><span class="badge-dot"></span> HIGH CONFIDENCE</span>
+        {% elif lvl == 'medium' %}
+          <span class="badge badge-info badge-pill"><span class="badge-dot"></span> MEDIUM CONFIDENCE</span>
+        {% elif lvl == 'low' %}
+          <span class="badge badge-warning badge-pill"><span class="badge-dot"></span> LOW CONFIDENCE</span>
+        {% else %}
+          <span class="badge badge-neutral badge-pill"><span class="badge-dot"></span> INSUFFICIENT DATA</span>
+        {% endif %}
+        {% if report.comparison_confidence.score %}
+          <span class="confidence-score font-mono">{{ report.comparison_confidence.score }}%</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Confidence Reasons / Factors List #}
+  {% if report.comparison_confidence.reasons %}
+  <div class="assessment-reasons-list">
+    <div class="reasons-heading text-muted">Assessment Drivers & Evidence Grounding:</div>
+    <ul class="reasons-items">
+      {% for reason in report.comparison_confidence.reasons %}
+      <li class="reason-item">
+        <span class="reason-bullet">◈</span>
+        <span>{{ reason }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# Cross-Currency FX Banner #}
+  {% if report.fx_conversions %}
+  <div class="assessment-fx-banner">
+    <span class="fx-icon">💱</span>
+    <div class="fx-details">
+      {% for fx in report.fx_conversions %}
+      <span><strong>Verified FX Conversion:</strong> 1 {{ fx.base_currency }} = {{ "%.4f"|format(fx.rate) }} {{ fx.quote_currency }} (Source: {{ fx.source }} via <code>{{ fx.source_symbol }}</code> at {{ fx.retrieved_at[:19] }}Z)</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,39 @@
+{# Category Winners Breakdown Grid #}
+<div class="card compare-categories-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <h3 class="panel-title">Deterministic Category Outcomes</h3>
+      <p class="panel-desc">Independent performance categories aggregated from verifiable metric wins. Ties and uncertain data avoid forced winners.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-3 categories-grid">
+    {% for cat in report.category_winners %}
+    <div class="category-card card-nested">
+      <div class="category-card-top">
+        <span class="category-name font-semibold">{{ cat.category.replace('_', ' ') | title }}</span>
+        {% if cat.winner.value == 'A' %}
+          <span class="badge badge-positive font-mono">{{ report.company_a.ticker }}</span>
+        {% elif cat.winner.value == 'B' %}
+          <span class="badge badge-info font-mono">{{ report.company_b.ticker }}</span>
+        {% elif cat.winner.value == 'TIE' %}
+          <span class="badge badge-neutral font-mono">TIE</span>
+        {% else %}
+          <span class="badge badge-warning font-mono">INSUFFICIENT DATA</span>
+        {% endif %}
+      </div>
+      <p class="category-explanation text-muted text-xs">{{ cat.explanation }}</p>
+      {% if cat.supporting_metrics %}
+      <div class="category-supporting-metrics">
+        <span class="supporting-label text-muted">Supporting Evidence:</span>
+        <div class="supporting-tags">
+          {% for metric_name in cat.supporting_metrics %}
+          <span class="badge badge-outline font-mono text-xs">{{ metric_name | metric_label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
