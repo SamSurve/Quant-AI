@@ -12,21 +12,21 @@
     </p>
   </div>
 
-  {# Live Market Snapshot / Metric Cards Grid #}
-  <div class="grid grid-4" id="overview-metrics">
-    {% with label="S&P 500 (SPY)", value="584.20", change="+0.42%", change_positive=True, subtext="Live Market Quote" %}
+  {# Capability cards only; actual market figures must come from the data providers. #}
+  <div class="grid grid-4" id="overview-capabilities">
+    {% with label="Market Intelligence", value="Fetched on request", subtext="Quotes, historical prices and signals", badge="Source-backed", badge_type="neutral" %}
       {% include "components/metric_card.html" %}
     {% endwith %}
 
-    {% with label="Nasdaq (QQQ)", value="498.75", change="+0.88%", change_positive=True, subtext="Tech Momentum" %}
+    {% with label="Company Analysis", value="Reported data", subtext="Statements, valuation and financial health", badge="Provider-dependent", badge_type="neutral" %}
       {% include "components/metric_card.html" %}
     {% endwith %}
 
-    {% with label="10-Year Yield", value="4.24%", change="-0.03%", change_negative=True, subtext="US Benchmark" %}
+    {% with label="Company Comparison", value="Side by side", subtext="Period-aware and currency-aware metrics", badge="Evidence-first", badge_type="neutral" %}
       {% include "components/metric_card.html" %}
     {% endwith %}
 
-    {% with label="Python UI Engine", value="FastAPI + Jinja2", subtext="Zero Node Build Needed", badge="Active", badge_type="positive" %}
+    {% with label="News and Events", value="Sourced records", subtext="Headlines and calendar entries when available", badge="Date-aware", badge_type="neutral" %}
       {% include "components/metric_card.html" %}
     {% endwith %}
   </div>
@@ -75,64 +75,52 @@
         <div class="dest-icon">⚡</div>
         <h3 class="dest-title">AI Research Desk</h3>
         <p class="dest-desc">Dedicated research desk with structured output, verifiable evidence citations, and failover resilience.</p>
-        <div class="dest-meta">
-          <span class="badge badge-neutral">Multi-Provider</span>
-          <span class="badge badge-neutral">Evidence-Backed</span>
-        </div>
-      </a>
-    </div>
-  </section>
-
-  {# Sample Financial Tabular Component Showcase #}
+         {# Workflow reference only. Never present hard-coded quote values as real market data. #}
   <section class="destinations-section">
     <div class="section-header">
-      <h2 class="section-title">Terminal Data Table Component</h2>
-      <span class="section-tag">Tabular Numerals & Numeric Alignment</span>
+      <h2 class="section-title">Research workflow</h2>
+      <span class="section-tag">Source-backed outputs</span>
     </div>
 
     <div class="table-container">
-      <table class="data-table" aria-label="Sample Watchlist Table">
+      <table class="data-table" aria-label="Research workflow reference">
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Name</th>
-            <th class="numeric">Price (USD)</th>
-            <th class="numeric">Change</th>
-            <th class="numeric">Market Cap</th>
-            <th>Status</th>
+            <th>Workspace</th>
+            <th>Example input</th>
+            <th>What it returns</th>
+            <th>Data handling</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="font-mono"><strong>AAPL</strong></td>
-            <td>Apple Inc.</td>
-            <td class="numeric font-mono">$231.40</td>
-            <td class="numeric font-mono change-positive">▲ +1.15%</td>
-            <td class="numeric font-mono">$3.52T</td>
-            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+            <td><strong>Market Intelligence</strong></td>
+            <td class="font-mono">AAPL</td>
+            <td>Quote, 1D–5Y price history, volume and market signal</td>
+            <td><span class="badge badge-neutral">Provider-sourced</span></td>
           </tr>
           <tr>
-            <td class="font-mono"><strong>MSFT</strong></td>
-            <td>Microsoft Corporation</td>
-            <td class="numeric font-mono">$428.15</td>
-            <td class="numeric font-mono change-positive">▲ +0.64%</td>
-            <td class="numeric font-mono">$3.18T</td>
-            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+            <td><strong>Company Deep Analysis</strong></td>
+            <td class="font-mono">AAPL</td>
+            <td>Financial statements, ratios, valuation inputs and governance</td>
+            <td><span class="badge badge-neutral">Missing values stay missing</span></td>
           </tr>
           <tr>
-            <td class="font-mono"><strong>GOOGL</strong></td>
-            <td>Alphabet Inc.</td>
-            <td class="numeric font-mono">$167.30</td>
-            <td class="numeric font-mono change-negative">▼ -0.45%</td>
-            <td class="numeric font-mono">$2.07T</td>
-            <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
+            <td><strong>Company Comparison</strong></td>
+            <td class="font-mono">AAPL / MSFT</td>
+            <td>Side-by-side metrics, scores and comparison confidence</td>
+            <td><span class="badge badge-neutral">Currency and period checks</span></td>
           </tr>
           <tr>
-            <td class="font-mono"><strong>NVDA</strong></td>
-            <td>NVIDIA Corporation</td>
-            <td class="numeric font-mono">$138.25</td>
-            <td class="numeric font-mono change-positive">▲ +2.10%</td>
-            <td class="numeric font-mono">$3.39T</td>
+            <td><strong>News & Events</strong></td>
+            <td>Company or ticker</td>
+            <td>News with source dates plus returned event records</td>
+            <td><span class="badge badge-neutral">Availability varies by source</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section> font-mono">$3.39T</td>
             <td><span class="badge badge-positive badge-pill"><span class="badge-dot"></span> Sourced</span></td>
           </tr>
         </tbody>
