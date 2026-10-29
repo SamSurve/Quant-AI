@@ -391,6 +391,13 @@ class ResearchOrchestrator:
         """Build a bounded A/B report; each company has independent resolution and source calls."""
 
         started = time.monotonic()
+        company_a_raw = (request.company_a or "").strip()
+        company_b_raw = (request.company_b or "").strip()
+        if not company_a_raw or not company_b_raw:
+            raise ResearchError(ErrorCategory.VALIDATION_ERROR, detail="Both company_a and company_b are required for comparison.")
+        if company_a_raw.upper() == company_b_raw.upper():
+            raise ResearchError(ErrorCategory.VALIDATION_ERROR, detail="comparison sides are identical")
+
         resolved_a, resolved_b = await asyncio.gather(
             self.entity_service.resolve(request.company_a or ""),
             self.entity_service.resolve(request.company_b or ""),

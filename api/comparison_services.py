@@ -203,6 +203,12 @@ def comparison_metric(
     source_b: SourceRecord | None = None,
     fx_conversion: FXConversion | None = None,
 ) -> ComparisonMetric:
+    # Filter non-finite numbers (NaN, Inf, -Inf)
+    if value_a is not None and (not isinstance(value_a, (int, float)) or not math.isfinite(value_a)):
+        value_a = None
+    if value_b is not None and (not isinstance(value_b, (int, float)) or not math.isfinite(value_b)):
+        value_b = None
+
     monetary = unit in {"currency", "per_share"}
     aligned = _period_alignment(period_a, period_b)
     currencies_match = not monetary or (currency_a is not None and currency_a == currency_b)
@@ -216,20 +222,40 @@ def comparison_metric(
         comparison_currency = currency_b
         currencies_match = True
         fx_applied = True
+
+    # Multiples validity: non-positive P/E or P/S cannot legitimately declare a winner
+    is_pe = metric == "pe_ratio"
+    is_ps = metric == "price_to_sales"
+    invalid_pe = is_pe and ((value_a is not None and value_a <= 0) or (value_b is not None and value_b <= 0))
+    invalid_ps = is_ps and ((value_a is not None and value_a <= 0) or (value_b is not None and value_b <= 0))
+
+    # Flow / statement metrics require aligned periods for absolute winner
+    is_period_dependent = period_a is not None or period_b is not None or metric in {"revenue", "net_income", "eps", "free_cash_flow"}
+
     note: str | None = None
-    if monetary and not currencies_match:
+    if invalid_pe:
+        note = "P/E ratio is undefined or non-comparable for negative or zero earnings."
+    elif invalid_ps:
+        note = "Price-to-sales ratio is undefined or non-comparable for non-positive values."
+    elif monetary and not currencies_match:
         note = "CURRENCY_COMPARISON_UNAVAILABLE: no verified conversion rate was used."
     elif fx_applied:
         note = "Verified FX conversion applied; source, pair, rate, and retrieval time are listed in FX evidence."
+    elif is_period_dependent and (not period_a or not period_b):
+        note = "Reporting period metadata is missing; no verified period-aligned winner can be determined."
     elif monetary and period_a and period_b and aligned != PeriodAlignment.ALIGNED:
         note = "Reporting periods are not sufficiently aligned for an absolute-value winner."
     elif aligned == PeriodAlignment.NOT_ALIGNED:
         note = "Reporting periods are not aligned; no winner is calculated."
+
     available = value_a is not None and value_b is not None
     period_safe = aligned != PeriodAlignment.NOT_ALIGNED
-    if monetary and period_a and period_b:
+    if monetary and (period_a or period_b):
         period_safe = aligned == PeriodAlignment.ALIGNED
-    can_compare = available and currencies_match and period_safe
+    elif is_period_dependent and (not period_a or not period_b):
+        period_safe = False
+
+    can_compare = available and currencies_match and period_safe and not invalid_pe and not invalid_ps
     winner = _winner(comparison_value_a, comparison_value_b, higher_is_better) if can_compare else ComparisonWinner.INSUFFICIENT_DATA
     difference = comparison_value_a - comparison_value_b if can_compare and comparison_value_a is not None and comparison_value_b is not None else None
     return ComparisonMetric(
@@ -404,11 +430,18 @@ def _period_alignment(period_a: str | None, period_b: str | None) -> PeriodAlign
 def _winner(value_a: float | int | None, value_b: float | int | None, higher_is_better: bool) -> ComparisonWinner:
     if value_a is None or value_b is None:
         return ComparisonWinner.INSUFFICIENT_DATA
-    if abs(float(value_a) - float(value_b)) < 1e-9:
+    try:
+        val_a = float(value_a)
+        val_b = float(value_b)
+    except (TypeError, ValueError):
+        return ComparisonWinner.INSUFFICIENT_DATA
+    if not math.isfinite(val_a) or not math.isfinite(val_b):
+        return ComparisonWinner.INSUFFICIENT_DATA
+    if abs(val_a - val_b) < 1e-9:
         return ComparisonWinner.TIE
     if higher_is_better:
-        return ComparisonWinner.A if value_a > value_b else ComparisonWinner.B
-    return ComparisonWinner.A if value_a < value_b else ComparisonWinner.B
+        return ComparisonWinner.A if val_a > val_b else ComparisonWinner.B
+    return ComparisonWinner.A if val_a < val_b else ComparisonWinner.B
 
 
 def _financial_strength(financial: FinancialHealth | None) -> tuple[int | None, list[str]]:
@@ -416,13 +449,14 @@ def _financial_strength(financial: FinancialHealth | None) -> tuple[int | None, 
         return None, []
     dimensions: list[float] = []
     factors: list[str] = []
-    if financial.profit_margin is not None:
+    if financial.profit_margin is not None and math.isfinite(financial.profit_margin):
         dimensions.append(_clip(50 + financial.profit_margin * 100, 0, 100))
         factors.append("Profit margin was available.")
-    if financial.free_cash_flow is not None and financial.revenue not in {None, 0}:
+    has_pos_revenue = financial.revenue is not None and math.isfinite(financial.revenue) and financial.revenue > 0
+    if financial.free_cash_flow is not None and math.isfinite(financial.free_cash_flow) and has_pos_revenue:
         dimensions.append(_clip(50 + (financial.free_cash_flow / financial.revenue) * 100, 0, 100))
         factors.append("Free-cash-flow margin was available.")
-    if financial.total_cash is not None and financial.total_debt is not None and financial.revenue not in {None, 0}:
+    if financial.total_cash is not None and math.isfinite(financial.total_cash) and financial.total_debt is not None and math.isfinite(financial.total_debt) and has_pos_revenue:
         dimensions.append(_clip(50 + ((financial.total_cash - financial.total_debt) / financial.revenue) * 100, 0, 100))
         factors.append("Net cash relative to revenue was available.")
     return (round(sum(dimensions) / len(dimensions)) if len(dimensions) >= 2 else None, factors)
