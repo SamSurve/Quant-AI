@@ -53,14 +53,14 @@ All primary financial data—including quotes, multi-period technical charts, au
 
 ## Primary Destinations & Research Capabilities
 
-1. **Market Intelligence (`/` or `/symbol/:symbol`)**:
-   Real-time quote summary, key statistics, interactive SVG price charts across 6 time horizons (1D, 5D, 1M, 6M, 1Y, 5Y), explainable technical signal indicators, company news, and upcoming corporate event calendar.
-2. **Company Deep Analysis (`/analysis` or `/symbol/:symbol/analysis`)**:
+1. **Market Intelligence (`/market`)**:
+   Real-time quote summary, key statistics, interactive server-rendered SVG price charts across 7 time horizons (1D, 1W, 1M, 3M, 6M, 1Y, 5Y), explainable technical momentum signals, sourced company news feed, and upcoming corporate event calendar.
+2. **Company Deep Analysis (`/analysis`)**:
    Audited multi-year financial statements (Income Statement, Balance Sheet, Cash Flow) across Annual and Quarterly frequencies, key valuation and solvency ratios, and corporate leadership governance data.
 3. **Company Comparison (`/compare`)**:
    Side-by-side metric matrix comparing any two tickers, with currency conversion awareness, fiscal period alignment detection, category outcome indicators, and deterministic financial strength and momentum scorecards.
 4. **AI Research Desk (`/research`)**:
-   Structured synthesis across 4 operational modes (`standard`, `company_deep_analysis`, `market_intelligence`, `company_comparison`) with full provenance audit trails, source citations, and honest graceful fallbacks when AI keys are absent.
+   Structured multi-provider synthesis across 4 operational modes (`standard`, `company_deep_analysis`, `market_intelligence`, `company_comparison`) plus an interactive conversational "Research Desk Exchange" (Ask the Finance Agent) with quick research prompts, session ledger, and verifiable source provenance citations.
 
 ---
 
