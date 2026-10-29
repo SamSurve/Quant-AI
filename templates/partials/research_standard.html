@@ -1,0 +1,184 @@
+{# Standard Financial Research Mode Content #}
+
+{# Quantitative Market Snapshot Card #}
+{% if response.market %}
+<div class="card research-market-card">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">DETERMINISTIC MARKET CONTEXT</div>
+      <h3 class="panel-title">Real-Time Market Execution</h3>
+    </div>
+    <span class="badge badge-neutral font-mono text-xs">As of: {{ response.market.as_of or 'Live' }}</span>
+  </div>
+
+  <div class="research-stats-grid">
+    <div class="stat-box">
+      <span class="stat-label text-muted">Latest Price</span>
+      <span class="stat-value font-mono">{{ response.market.current_price | currency(response.market.currency or 'USD') }}</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-label text-muted">Session Change</span>
+      {% if response.market.daily_change is not none and response.market.daily_change_percent is not none %}
+        {% set chg = response.market.daily_change %}
+        {% set pct = response.market.daily_change_percent %}
+        <span class="stat-value font-mono {% if chg > 0 %}text-positive{% elif chg < 0 %}text-negative{% else %}text-muted{% endif %}">
+          {% if chg > 0 %}+{% endif %}{{ chg|round(2) }} ({{ pct|round(2) }}%)
+        </span>
+      {% else %}
+        <span class="stat-value font-mono text-muted">—</span>
+      {% endif %}
+    </div>
+    {% if response.market.volume %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Volume</span>
+      <span class="stat-value font-mono">{{ response.market.volume | large_num }}</span>
+    </div>
+    {% endif %}
+    {% if response.company and response.company.exchange %}
+    <div class="stat-box">
+      <span class="stat-label text-muted">Primary Exchange</span>
+      <span class="stat-value font-mono">{{ response.company.exchange }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Structured AI Synthesis Card #}
+{% if response.analysis %}
+<div class="card research-synthesis-card">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">SYNTHESIS & THEMATIC THESIS</div>
+      <h3 class="panel-title">Evidence-Grounded AI Research Synthesis</h3>
+    </div>
+    <div class="synthesis-badges">
+      {% if response.analysis.market_sentiment %}
+        {% set sent = response.analysis.market_sentiment %}
+        <span class="badge {% if sent == 'positive' %}badge-positive{% elif sent == 'negative' %}badge-warning{% else %}badge-neutral{% endif %} font-mono">
+          Sentiment: {{ sent | upper }}
+        </span>
+      {% endif %}
+      {% if response.analysis.confidence %}
+        <span class="badge badge-outline font-mono">Confidence: {{ response.analysis.confidence | upper }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="synthesis-body">
+    {% if response.analysis.executive_summary %}
+    <div class="synthesis-section">
+      <h5 class="synthesis-section-title text-muted font-mono">EXECUTIVE SUMMARY</h5>
+      <p class="synthesis-text">{{ response.analysis.executive_summary }}</p>
+    </div>
+    {% endif %}
+
+    {% if response.analysis.what_is_happening %}
+    <div class="synthesis-section">
+      <h5 class="synthesis-section-title text-muted font-mono">OPERATIONAL CONTEXT & DEVELOPMENTS</h5>
+      <p class="synthesis-text">{{ response.analysis.what_is_happening }}</p>
+    </div>
+    {% endif %}
+
+    {# Bullish vs Bearish Factors Grid #}
+    {% if response.analysis.bullish_factors or response.analysis.bearish_factors %}
+    <div class="grid grid-2 thesis-factors-grid">
+      <div class="factor-column column-bullish">
+        <h5 class="factor-heading font-mono text-positive">◈ Core Growth Drivers & Bullish Thesis</h5>
+        <ul class="factors-bullet-list">
+          {% for factor in response.analysis.bullish_factors %}
+          <li class="factor-bullet-item font-mono text-xs"><span>+</span> {{ factor }}</li>
+          {% else %}
+          <li class="factor-bullet-item font-mono text-xs text-muted">No verified bullish factors observed.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="factor-column column-bearish">
+        <h5 class="factor-heading font-mono text-warning">◈ Headwinds & Bearish Thesis</h5>
+        <ul class="factors-bullet-list">
+          {% for factor in response.analysis.bearish_factors %}
+          <li class="factor-bullet-item font-mono text-xs"><span>−</span> {{ factor }}</li>
+          {% else %}
+          <li class="factor-bullet-item font-mono text-xs text-muted">No verified bearish factors observed.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Catalysts & Risks Grid #}
+    {% if response.analysis.catalysts or response.analysis.risks %}
+    <div class="grid grid-2 thesis-factors-grid">
+      {% if response.analysis.catalysts %}
+      <div class="factor-column">
+        <h5 class="factor-heading font-mono text-info">◈ Key Upcoming Catalysts</h5>
+        <ul class="factors-bullet-list">
+          {% for cat in response.analysis.catalysts %}
+          <li class="factor-bullet-item font-mono text-xs"><span>⚡</span> {{ cat }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if response.analysis.risks %}
+      <div class="factor-column">
+        <h5 class="factor-heading font-mono text-negative">◈ Primary Risk Factors</h5>
+        <ul class="factors-bullet-list">
+          {% for risk in response.analysis.risks %}
+          <li class="factor-bullet-item font-mono text-xs"><span>⚠</span> {{ risk }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if response.analysis.what_to_watch %}
+    <div class="synthesis-section">
+      <h5 class="synthesis-section-title text-muted font-mono">ANALYST WATCHLIST & METRICS</h5>
+      <ul class="factors-bullet-list horizontal-tags">
+        {% for watch in response.analysis.what_to_watch %}
+        <li class="badge badge-outline font-mono text-xs">{{ watch }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Recent News & Headline Disclosures #}
+{% if response.news %}
+<div class="card research-news-card">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">RECENT DISCLOSURES & HEADLINES</div>
+      <h4 class="panel-title">Sourced News Feed</h4>
+    </div>
+    <span class="badge badge-neutral font-mono text-xs">{{ response.news|length }} Articles</span>
+  </div>
+
+  <div class="news-list">
+    {% for item in response.news %}
+    <div class="news-item">
+      <div class="news-meta text-xs text-muted font-mono">
+        <span>{{ item.publisher }}</span>
+        {% if item.published_at %}
+          <span>·</span>
+          <span>{{ item.published_at[:10] }}</span>
+        {% endif %}
+      </div>
+      {% if item.url and (item.url.startswith('http://') or item.url.startswith('https://')) %}
+        <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" class="news-headline font-medium">
+          <span>{{ item.title }}</span>
+          <span class="link-arrow">↗</span>
+        </a>
+      {% else %}
+        <div class="news-headline font-medium">{{ item.title }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}AI Research Desk — QuantAI{% endblock %}
+
+{% block content %}
+<div class="destination-page research-desk-page">
+  {# Page Title Header #}
+  <div class="page-header">
+    <div class="page-title-group">
+      <div class="hero-badge">DESTINATION D · AI RESEARCH DESK</div>
+      <h1 class="page-title">Dedicated AI Research Desk</h1>
+      <p class="page-subtitle">Evidence-grounded multi-provider thesis synthesis, quantitative fundamental benchmarking, and verifiable source attribution.</p>
+    </div>
+  </div>
+
+  {# Research Control Panel & Query Form #}
+  <div class="card research-selector-card">
+    <form class="research-form" action="/research" method="GET" hx-get="/research" hx-target="#research-content" hx-swap="outerHTML" hx-push-url="true" hx-indicator="#research-spinner">
+      {# Mode Selector Tabs #}
+      <div class="research-mode-tabs-wrap">
+        <span class="mode-tabs-label text-muted font-mono text-xs">Research Mode:</span>
+        <div class="mode-tabs-group" role="radiogroup" aria-label="Research Mode">
+          <label class="mode-tab-pill font-mono {% if mode == 'standard' or not mode %}active{% endif %}">
+            <input type="radio" name="mode" value="standard" {% if mode == 'standard' or not mode %}checked{% endif %} class="mode-radio">
+            <span>Standard Thesis</span>
+          </label>
+          <label class="mode-tab-pill font-mono {% if mode == 'company_deep_analysis' %}active{% endif %}">
+            <input type="radio" name="mode" value="company_deep_analysis" {% if mode == 'company_deep_analysis' %}checked{% endif %} class="mode-radio">
+            <span>Deep Analysis</span>
+          </label>
+          <label class="mode-tab-pill font-mono {% if mode == 'market_intelligence' %}active{% endif %}">
+            <input type="radio" name="mode" value="market_intelligence" {% if mode == 'market_intelligence' %}checked{% endif %} class="mode-radio">
+            <span>Market Intelligence</span>
+          </label>
+          <label class="mode-tab-pill font-mono {% if mode == 'company_comparison' %}active{% endif %}">
+            <input type="radio" name="mode" value="company_comparison" {% if mode == 'company_comparison' %}checked{% endif %} class="mode-radio">
+            <span>Peer Comparison</span>
+          </label>
+        </div>
+      </div>
+
+      {# Dynamic Inputs Area #}
+      <div class="research-inputs-container">
+        {# Single Query Input (Standard, Deep Analysis, Market Intelligence) #}
+        <div id="single-query-wrap" class="input-field-wrap single-input-row" {% if mode == 'company_comparison' %}style="display: none;"{% endif %}>
+          <label for="research-query-input" class="input-label text-muted font-mono">Company or Ticker Query</label>
+          <div class="input-action-bar">
+            <input
+              id="research-query-input"
+              type="text"
+              name="query"
+              value="{{ query }}"
+              placeholder="e.g. AAPL, NVDA, Microsoft Corporation..."
+              class="input-terminal font-mono"
+              maxlength="80"
+              autocomplete="off"
+              spellcheck="false"
+              {% if mode != 'company_comparison' %}required{% endif %}
+            >
+            <button type="submit" class="btn btn-primary research-submit-btn font-mono">
+              <span>Execute Research</span>
+              <span id="research-spinner" class="htmx-indicator spinner"></span>
+            </button>
+          </div>
+        </div>
+
+        {# Dual Query Inputs (Company Comparison Mode) #}
+        <div id="comparison-query-wrap" class="comparison-inputs-row" {% if mode != 'company_comparison' %}style="display: none;"{% endif %}>
+          <div class="compare-inputs-group">
+            <div class="input-field-wrap">
+              <label for="input-research-ca" class="input-label text-muted font-mono">Company A</label>
+              <input
+                id="input-research-ca"
+                type="text"
+                name="company_a"
+                value="{{ company_a }}"
+                placeholder="e.g. AAPL"
+                class="input-terminal font-mono"
+                maxlength="80"
+                autocomplete="off"
+                spellcheck="false"
+                {% if mode == 'company_comparison' %}required{% endif %}
+              >
+            </div>
+            <div class="selector-vs-divider font-mono text-muted">VS</div>
+            <div class="input-field-wrap">
+              <label for="input-research-cb" class="input-label text-muted font-mono">Company B</label>
+              <input
+                id="input-research-cb"
+                type="text"
+                name="company_b"
+                value="{{ company_b }}"
+                placeholder="e.g. MSFT"
+                class="input-terminal font-mono"
+                maxlength="80"
+                autocomplete="off"
+                spellcheck="false"
+                {% if mode == 'company_comparison' %}required{% endif %}
+              >
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary research-submit-btn font-mono">
+            <span>Compare Peers</span>
+            <span class="htmx-indicator spinner"></span>
+          </button>
+        </div>
+      </div>
+
+      {# Quick Starter Pills Row #}
+      <div class="research-actions-row">
+        <div class="quick-starters-wrap text-muted text-xs">
+          <span>Curated Queries:</span>
+          <a href="/research?query=AAPL&mode=standard" hx-get="/research?query=AAPL&mode=standard" hx-target="#research-content" hx-swap="outerHTML" hx-push-url="true" class="pair-pill font-mono">AAPL (Standard)</a>
+          <a href="/research?query=NVDA&mode=company_deep_analysis" hx-get="/research?query=NVDA&mode=company_deep_analysis" hx-target="#research-content" hx-swap="outerHTML" hx-push-url="true" class="pair-pill font-mono">NVDA (Deep Analysis)</a>
+          <a href="/research?query=MSFT&mode=market_intelligence" hx-get="/research?query=MSFT&mode=market_intelligence" hx-target="#research-content" hx-swap="outerHTML" hx-push-url="true" class="pair-pill font-mono">MSFT (Market Intel)</a>
+          <a href="/research?mode=company_comparison&company_a=AAPL&company_b=MSFT" hx-get="/research?mode=company_comparison&company_a=AAPL&company_b=MSFT" hx-target="#research-content" hx-swap="outerHTML" hx-push-url="true" class="pair-pill font-mono">AAPL vs MSFT (Comparison)</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# Main Research Content Workspace (HTMX Swappable) #}
+  {% include "partials/research_content.html" %}
+</div>
+
+{# Client Support for Mode Switching #}
+<script>
+  (function () {
+    const singleWrap = document.getElementById('single-query-wrap');
+    const compWrap = document.getElementById('comparison-query-wrap');
+    const queryInput = document.getElementById('research-query-input');
+    const caInput = document.getElementById('input-research-ca');
+    const cbInput = document.getElementById('input-research-cb');
+    const radios = document.querySelectorAll('input[name="mode"]');
+    const pills = document.querySelectorAll('.mode-tab-pill');
+
+    radios.forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        pills.forEach((p) => p.classList.remove('active'));
+        e.target.closest('.mode-tab-pill').classList.add('active');
+
+        if (e.target.value === 'company_comparison') {
+          if (singleWrap) singleWrap.style.display = 'none';
+          if (compWrap) compWrap.style.display = 'flex';
+          if (queryInput) queryInput.removeAttribute('required');
+          if (caInput) caInput.setAttribute('required', 'required');
+          if (cbInput) cbInput.setAttribute('required', 'required');
+        } else {
+          if (singleWrap) singleWrap.style.display = 'block';
+          if (compWrap) compWrap.style.display = 'none';
+          if (queryInput) queryInput.setAttribute('required', 'required');
+          if (caInput) caInput.removeAttribute('required');
+          if (cbInput) cbInput.removeAttribute('required');
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

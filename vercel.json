@@ -1,26 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm run build",
-  "outputDirectory": "dist/public",
+  "framework": "fastapi",
   "functions": {
-    "api/**/*.py": {
+    "api/index.py": {
       "maxDuration": 60,
-      "includeFiles": "api/**",
-      "excludeFiles": "{client/**,server/**,shared/**,.manus-logs/**,tests/**,**/__pycache__/**,**/*.pyc,**/*.pyo,**/.pytest_cache/**,.vercel/**,dist/**,node_modules/**}"
+      "includeFiles": "{templates/**,static/**,api/**}"
     }
   },
   "headers": [
     {
       "source": "/api/:path*",
-      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/:path((?!api(?:/|$)).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "destination": "/api/index.py"
     }
   ]
 }

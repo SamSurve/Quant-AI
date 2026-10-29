@@ -1,0 +1,47 @@
+{# Sourced Evidence Stream & Provenance #}
+<div class="card research-sources-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <div class="section-tag font-mono">EVIDENCE ATTRIBUTION & PROVENANCE</div>
+      <h3 class="panel-title">Sourced Evidence Stream</h3>
+      <p class="panel-desc">All analytical statements and quantitative metrics are grounded in verified underlying sources. Unsubstantiated claims are rejected.</p>
+    </div>
+    <span class="badge badge-info badge-pill"><span class="badge-dot"></span> {{ response.sources|length }} Verified Sources</span>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table sources-table" aria-label="Research Sources and Citations">
+      <thead>
+        <tr>
+          <th>Source / Provider</th>
+          <th>Data Domain</th>
+          <th>Retrieved At</th>
+          <th>Verification Citation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for src in response.sources %}
+        <tr>
+          <td class="font-semibold">{{ src.source }}</td>
+          <td><span class="badge badge-outline font-mono">{{ src.data_type }}</span></td>
+          <td class="font-mono text-muted text-xs">{{ src.retrieved_at or '—' }}</td>
+          <td>
+            {% if src.url and (src.url.startswith('http://') or src.url.startswith('https://')) %}
+              <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer" class="source-link font-mono text-xs">
+                <span>View Citation</span>
+                <span class="link-arrow">↗</span>
+              </a>
+            {% else %}
+              <span class="badge badge-neutral font-mono text-xs">Internal / Process Grounded</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="research-disclaimer text-muted text-xs">
+    Disclaimer: QuantAI research desk synthesis, market intelligence signals, and peer comparisons provide analytical framing based strictly on verified historical disclosures and real-time market data. They do not constitute investment advice, trading signals, price targets, or financial recommendations.
+  </div>
+</div>

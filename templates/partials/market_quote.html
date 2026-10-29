@@ -1,0 +1,137 @@
+{# templates/partials/market_quote.html #}
+<div id="market-quote-container">
+  {% if pulse and pulse.status.value != 'unavailable' and pulse.market %}
+    {# Symbol Overview Header #}
+    <div class="symbol-header-card card">
+      <div class="symbol-title-row">
+        <div class="symbol-identity">
+          <span class="symbol-badge font-mono">{{ pulse.company.symbol }}</span>
+          <h2 class="symbol-company-name">{{ pulse.company.name or pulse.company.symbol }}</h2>
+          {% if pulse.company.exchange %}
+            <span class="badge badge-neutral">{{ pulse.company.exchange }}</span>
+          {% endif %}
+          {% if pulse.company.sector %}
+            <span class="badge badge-info">{{ pulse.company.sector }}</span>
+          {% endif %}
+        </div>
+        <div class="symbol-quote-summary">
+          <div class="quote-price-line">
+            {% if pulse.market.current_price is not none %}
+              <span class="quote-price font-mono">{{ pulse.market.current_price|currency(pulse.market.currency) }}</span>
+            {% else %}
+              <span class="quote-price font-mono text-muted">Price Unavailable</span>
+            {% endif %}
+            
+            {% if pulse.market.daily_change_percent is not none %}
+              {% set is_up = pulse.market.daily_change_percent >= 0 %}
+              <span class="quote-delta font-mono {{ 'change-positive' if is_up else 'change-negative' }}">
+                {{ '▲' if is_up else '▼' }} {{ pulse.market.daily_change|currency(pulse.market.currency) }} ({{ pulse.market.daily_change_percent|percent }})
+              </span>
+            {% endif %}
+          </div>
+          <div class="quote-sub-meta font-mono">
+            {% if pulse.market.market_status %}
+              <span class="market-status-pill">{{ pulse.market.market_status }}</span>
+            {% endif %}
+            {% if pulse.market.as_of %}
+              <span class="text-muted">As of {{ pulse.market.as_of[:19] }} UTC</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# 4-Card Primary Metrics Grid #}
+    <div class="grid grid-4 market-metrics-grid">
+      <div class="card metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Volume</span>
+          <span class="badge badge-neutral">Trading</span>
+        </div>
+        <div class="metric-body">
+          <div class="metric-value font-mono">{{ pulse.market.volume|large_num }}</div>
+          <div class="metric-subtext">
+            {% if pulse.market.market_cap %}
+              Mkt Cap: {{ pulse.market.market_cap|large_num }}
+            {% else %}
+              Reported session volume
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card metric-card">
+        <div class="metric-header">
+          <span class="metric-label">52-Week Range</span>
+          <span class="badge badge-neutral">Range</span>
+        </div>
+        <div class="metric-body">
+          <div class="metric-value font-mono font-sm">
+            {% if pulse.market.fifty_two_week_low is not none and pulse.market.fifty_two_week_high is not none %}
+              {{ pulse.market.fifty_two_week_low|currency(pulse.market.currency) }} – {{ pulse.market.fifty_two_week_high|currency(pulse.market.currency) }}
+            {% else %}
+              Unavailable
+            {% endif %}
+          </div>
+          <div class="metric-subtext">52-week trailing extremes</div>
+        </div>
+      </div>
+
+      <div class="card metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Valuation & Yield</span>
+          <span class="badge badge-neutral">Fundamentals</span>
+        </div>
+        <div class="metric-body">
+          <div class="metric-value font-mono font-sm">
+            P/E: {{ "%.2f"|format(pulse.market.pe_ratio) if pulse.market.pe_ratio else 'N/A' }} · EPS: {{ pulse.market.eps|currency(pulse.market.currency) if pulse.market.eps else 'N/A' }}
+          </div>
+          <div class="metric-subtext">
+            Div Yield: {{ "%.2f%%"|format(pulse.market.dividend_yield * 100) if pulse.market.dividend_yield else 'N/A' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="card metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Source Freshness</span>
+          {% if freshness.state.value == 'live' %}
+            <span class="badge badge-positive">Live</span>
+          {% elif freshness.state.value == 'cached' %}
+            <span class="badge badge-info">Cached</span>
+          {% else %}
+            <span class="badge badge-warning">Delayed</span>
+          {% endif %}
+        </div>
+        <div class="metric-body">
+          <div class="metric-value font-mono font-sm">
+            {{ freshness.state.value|capitalize }} ({{ freshness.cache_scope }})
+          </div>
+          <div class="metric-subtext">
+            Provider: Yahoo Finance Feed
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    {# Honest Unavailable Alert #}
+    <div class="card unavailable-alert-card">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-content">
+        <h3 class="alert-heading">Market Quote Data Unavailable</h3>
+        <p class="alert-text">
+          {% if pulse and pulse.warning %}
+            {{ pulse.warning.detail }}
+          {% else %}
+            The upstream financial data feed did not return live quote metrics for <strong>{{ symbol }}</strong>.
+          {% endif %}
+        </p>
+        <div class="alert-actions">
+          <button class="btn btn-secondary btn-sm" hx-get="/market/quote?symbol={{ symbol }}" hx-target="#market-quote-container" hx-swap="outerHTML">
+            Retry Provider Request
+          </button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>

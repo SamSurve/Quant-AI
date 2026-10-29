@@ -17,7 +17,7 @@ from agno.exceptions import ModelProviderError
 
 from .ai_providers import ProviderRouter
 from .research_errors import ResearchError
-from .research_logging import log_research_event
+from .research_logging import log_research_event, scrub_secrets
 from .research_schemas import (
     CompanyDeepAnalysisFreshness,
     CompanyDeepAnalysisInterpretation,
@@ -178,9 +178,11 @@ class AnalysisSynthesisService:
                 timeout=AI_TOTAL_BUDGET_SECONDS,
             )
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"AI synthesis timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"AI synthesis timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"AI synthesis unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"AI synthesis unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
 
 class CompanyAnalysisSynthesisService:
@@ -217,9 +219,11 @@ class CompanyAnalysisSynthesisService:
             self._assert_no_numeric_claims(interpretation)
             return interpretation
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"company analysis AI timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"company analysis AI timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"company analysis AI unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"company analysis AI unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
     @staticmethod
     def _assert_no_numeric_claims(interpretation: CompanyDeepAnalysisInterpretation) -> None:
@@ -268,9 +272,11 @@ class ComparisonSynthesisService:
             CompanyAnalysisSynthesisService._assert_no_numeric_claims(interpretation)
             return interpretation
         except TimeoutError as error:
-            raise ResearchError(ErrorCategory.TIMEOUT, detail=f"comparison AI timeout: {error}", retryable=True) from error
+            safe_detail = scrub_secrets(f"comparison AI timeout: {error}")
+            raise ResearchError(ErrorCategory.TIMEOUT, detail=safe_detail, retryable=True) from error
         except (ModelProviderError, ValueError, TypeError) as error:
-            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=f"comparison AI unavailable: {type(error).__name__}", retryable=True) from error
+            safe_detail = scrub_secrets(f"comparison AI unavailable: {type(error).__name__}")
+            raise ResearchError(ErrorCategory.AI_UNAVAILABLE, detail=safe_detail, retryable=True) from error
 
 
 class ResearchOrchestrator:
@@ -391,6 +397,13 @@ class ResearchOrchestrator:
         """Build a bounded A/B report; each company has independent resolution and source calls."""
 
         started = time.monotonic()
+        company_a_raw = (request.company_a or "").strip()
+        company_b_raw = (request.company_b or "").strip()
+        if not company_a_raw or not company_b_raw:
+            raise ResearchError(ErrorCategory.VALIDATION_ERROR, detail="Both company_a and company_b are required for comparison.")
+        if company_a_raw.upper() == company_b_raw.upper():
+            raise ResearchError(ErrorCategory.VALIDATION_ERROR, detail="comparison sides are identical")
+
         resolved_a, resolved_b = await asyncio.gather(
             self.entity_service.resolve(request.company_a or ""),
             self.entity_service.resolve(request.company_b or ""),

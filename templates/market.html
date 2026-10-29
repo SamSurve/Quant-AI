@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}{{ symbol }} Market Intelligence — QuantAI{% endblock %}
+
+{% block content %}
+<div class="destination-page">
+  {# Page Top Header & Search #}
+  <div class="page-header">
+    <div class="page-title-group">
+      <div class="hero-badge">Destination A · Market Intelligence</div>
+      <h1 class="page-title">{{ symbol }} Overview</h1>
+      <p class="page-subtitle">Real-time quotes, technical momentum signals, and contextual price history.</p>
+    </div>
+    <div class="page-search-wrapper">
+      {% include "components/search_bar.html" %}
+    </div>
+  </div>
+
+  {% if validation_error %}
+    {# Symbol Format Validation Alert #}
+    <div class="card validation-error-card">
+      <div class="alert-icon">❌</div>
+      <div class="alert-content">
+        <h3 class="alert-heading">Invalid Ticker Symbol</h3>
+        <p class="alert-text">{{ validation_error }}</p>
+        <p class="font-sm text-muted">
+          Supported examples: <code>AAPL</code>, <code>MSFT</code>, <code>SPY</code>, <code>BRK.B</code>, <code>^GSPC</code>, <code>TMPV.NS</code>.
+        </p>
+      </div>
+    </div>
+  {% else %}
+    {# 1. Quote Summary & 4-Card Primary Metrics #}
+    {% include "partials/market_quote.html" %}
+
+    {# 2. Interactive Candlestick / Area Price Chart with HTMX Horizon Switching #}
+    {% include "partials/market_chart.html" %}
+
+    {# 3. Lower Analysis Grid: Deterministic Signals & Event Radar #}
+    <div class="grid grid-2 market-analysis-grid">
+      {% include "partials/market_signal.html" %}
+      {% include "partials/market_events.html" %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

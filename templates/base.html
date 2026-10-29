@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>{% block title %}QuantAI — Financial Research Platform{% endblock %}</title>
+  <meta name="description" content="Production-grade financial research desk powered by Python, FastAPI, and HTMX.">
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="quantai-app">
+  <header class="app-header">
+    <div class="header-inner container">
+      <div class="brand">
+        <a href="/" class="brand-link">
+          <span class="brand-mark">Q</span>
+          <span class="brand-text">Quant<span class="brand-accent">AI</span></span>
+        </a>
+        <span class="env-badge">Python Core</span>
+      </div>
+
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+          <span class="nav-icon">◈</span> Overview
+        </a>
+        <a href="/market" class="nav-item {% if active_page == 'market' %}active{% endif %}">
+          <span class="nav-icon">📈</span> Market Intelligence
+        </a>
+        <a href="/analysis" class="nav-item {% if active_page == 'analysis' %}active{% endif %}">
+          <span class="nav-icon">📊</span> Deep Analysis
+        </a>
+        <a href="/compare" class="nav-item {% if active_page == 'compare' %}active{% endif %}">
+          <span class="nav-icon">⚖</span> Comparison
+        </a>
+        <a href="/research" class="nav-item {% if active_page == 'research' %}active{% endif %}">
+          <span class="nav-icon">⚡</span> AI Research Desk
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <div class="status-pill status-healthy" title="FastAPI Engine Active">
+          <span class="status-dot"></span>
+          <span class="status-label">Operational</span>
+        </div>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme">
+          <span class="theme-icon">◐</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner container">
+      <div class="footer-meta">
+        <span>QuantAI Finance Agent</span>
+        <span class="separator">·</span>
+        <span>Python-First Architecture</span>
+        <span class="separator">·</span>
+        <span>FastAPI · Jinja2 · HTMX</span>
+      </div>
+      <div class="footer-status">
+        <a href="/api/health" class="footer-link">API Health</a>
+        <span class="separator">·</span>
+        <a href="/health/ready" class="footer-link">Readiness</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/app.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,64 @@
+{# templates/partials/market_signal.html #}
+<div id="market-signal-container" class="card signal-panel">
+  <div class="panel-header">
+    <div class="panel-title-group">
+      <h3 class="panel-title">Deterministic Technical Signal</h3>
+      <span class="badge badge-neutral">Mathematical Model</span>
+    </div>
+    {% if signal and signal.signal %}
+      {% if signal.signal == 'BULLISH' %}
+        <span class="badge badge-positive">BULLISH</span>
+      {% elif signal.signal == 'BEARISH' %}
+        <span class="badge badge-negative">BEARISH</span>
+      {% else %}
+        <span class="badge badge-warning">NEUTRAL</span>
+      {% endif %}
+    {% else %}
+      <span class="badge badge-neutral">INSUFFICIENT DATA</span>
+    {% endif %}
+  </div>
+
+  {% if signal and signal.score is not none %}
+    <div class="signal-score-block">
+      <div class="signal-score-display">
+        <span class="score-number font-mono">{{ signal.score }}</span>
+        <span class="score-max font-mono text-muted">/100</span>
+      </div>
+      <div class="signal-meter-bar" role="progressbar" aria-valuenow="{{ signal.score }}" aria-valuemin="0" aria-valuemax="100">
+        <div
+          class="signal-meter-fill {{ 'fill-positive' if signal.score >= 60 else ('fill-negative' if signal.score <= 40 else 'fill-neutral') }}"
+          style="width: {{ signal.score }}%;"
+        ></div>
+      </div>
+      <div class="signal-confidence font-mono font-sm text-muted">
+        Model Confidence: <strong>{{ signal.confidence }}%</strong>
+      </div>
+    </div>
+
+    <div class="signal-factors-section">
+      <h4 class="section-subtitle font-sm">Observed Factor Breakdown</h4>
+      <ul class="signal-factors-list">
+        {% for factor in signal.factors %}
+          <li class="signal-factor-item font-sm">
+            <span class="factor-bullet">›</span>
+            <span>{{ factor }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="signal-methodology-note font-sm text-muted">
+      <strong>Methodology:</strong> {{ signal.methodology }}
+    </div>
+  {% else %}
+    <div class="signal-unavailable-box">
+      <p class="font-sm text-muted">
+        {% if signal and signal.explanation %}
+          {{ signal.explanation }}
+        {% else %}
+          At least 21 daily trading sessions of continuous OHLC price history are required to deterministically compute momentum, moving averages, and volatility signals.
+        {% endif %}
+      </p>
+    </div>
+  {% endif %}
+</div>
