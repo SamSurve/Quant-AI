@@ -83,17 +83,20 @@ class TestWebFoundation(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn(b"Rendering Error", response.body)
 
-    def test_design_system_components_rendered(self):
-        """Landing page must render M03 design system components: metric cards, badges, and table."""
+    def test_landing_page_does_not_present_sample_quotes_as_live_data(self):
+        """The landing page may show capabilities, but must never present hard-coded quotes as current."""
         response = self.client.get("/", headers={"Accept": "text/html"})
         self.assertEqual(response.status_code, 200)
-        text = response.text
-        self.assertIn("metric-card", text)
-        self.assertIn("badge", text)
-        self.assertIn("data-table", text)
-        self.assertIn("S&amp;P 500 (SPY)", text)
-        self.assertIn("Apple Inc.", text)
-        self.assertIn("numeric", text)
+        rendered = response.text
+        self.assertIn("metric-card", rendered)
+        self.assertIn("badge", rendered)
+        self.assertIn("data-table", rendered)
+        self.assertIn("Research workflow", rendered)
+        self.assertIn("AAPL / MSFT", rendered)
+        self.assertIn("Fetched on request", rendered)
+        self.assertNotIn("584.20", rendered)
+        self.assertNotIn("$231.40", rendered)
+        self.assertNotIn("$428.15", rendered)
 
     def test_css_design_system_tokens(self):
         """CSS stylesheet must define core design tokens and responsive rules."""
