@@ -8,6 +8,7 @@ public same-origin path becomes ``/api/agents/...``.
 import logging
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlencode
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -95,9 +96,6 @@ async def request_context_and_body_limit(request: Request, call_next: Any) -> JS
     else:
         response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
-    response.headers["X-Debug-Path"] = str(request.url.path)
-    response.headers["X-Debug-Scope-Path"] = str(request.scope.get("path"))
-    response.headers["X-Debug-Root-Path"] = str(request.scope.get("root_path"))
     return response
 
 
@@ -132,17 +130,6 @@ async def request_validation_error_handler(request: Request, error: RequestValid
 async def unhandled_error_handler(request: Request, error: Exception) -> JSONResponse:
     LOGGER.exception("unhandled_api_error request_id=%s type=%s", _request_id(request), type(error).__name__)
     return _error_response(request, ResearchError(ErrorCategory.INTERNAL_ERROR, detail=type(error).__name__))
-
-
-@app.get("/api/index.py", include_in_schema=False)
-@app.get("/api/index", include_in_schema=False)
-def vercel_debug_info(request: Request):
-    return {
-        "url": str(request.url),
-        "path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "headers": dict(request.headers),
-    }
 
 
 def health_payload() -> dict[str, Any]:
@@ -206,3 +193,30 @@ app.mount("/api", agentos_app)
 # Vercel's Python adapters normally preserve `/api`, but the fallback mount also
 # serves AgentOS when a function adapter forwards `/api/agents` as `/agents`.
 app.mount("", agentos_app)
+
+
+class VercelPathRewriteMiddleware:
+    """Restore the requested path and query parameters forwarded via Vercel rewrite capture."""
+
+    def __init__(self, asgi_app: Any) -> None:
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") == "http":
+            query_bytes = scope.get("query_string", b"")
+            if b"__path__=" in query_bytes:
+                query_str = query_bytes.decode("utf-8")
+                params = parse_qs(query_str, keep_blank_values=True)
+                if "__path__" in params:
+                    raw_path = params.pop("__path__")[0]
+                    clean_path = raw_path if raw_path.startswith("/") else f"/{raw_path}"
+                    scope["path"] = clean_path
+                    scope["raw_path"] = clean_path.encode("utf-8")
+                    scope["root_path"] = ""
+                    clean_qs = urlencode([(k, v) for k, vs in params.items() for v in vs])
+                    scope["query_string"] = clean_qs.encode("utf-8")
+        await self.asgi_app(scope, receive, send)
+
+
+app.add_middleware(VercelPathRewriteMiddleware)
+
