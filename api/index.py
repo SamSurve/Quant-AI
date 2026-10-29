@@ -6,12 +6,14 @@ public same-origin path becomes ``/api/agents/...``.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from agno.exceptions import ModelProviderError
 
@@ -22,6 +24,7 @@ from .research_errors import ResearchError
 from .research_orchestrator import AnalysisSynthesisService, ResearchOrchestrator
 from .research_protection import ResearchConcurrencyGuard, SlidingWindowRateLimiter
 from .research_schemas import ErrorCategory, ErrorResponse, ResearchRequest, ResearchResponse
+from .web import router as web_router
 
 
 app = FastAPI(title="QuantAI Finance Agent API", docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -33,6 +36,12 @@ research_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
 research_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
 agentos_rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=60)
 agentos_concurrency_guard = ResearchConcurrencyGuard(max_concurrent=4)
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+if STATIC_DIR.is_dir():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+app.include_router(web_router)
 
 
 def _request_id(request: Request) -> str:
@@ -149,7 +158,6 @@ def prefixed_health() -> dict[str, Any]:
     return health_payload()
 
 
-@app.get("/", include_in_schema=False)
 @app.get("/health", include_in_schema=False)
 def prefix_stripped_health() -> dict[str, Any]:
     """Support Vercel function adapters that strip the function's `/api` prefix."""

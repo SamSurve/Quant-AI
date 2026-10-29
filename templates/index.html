@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}QuantAI — Financial Research Platform{% endblock %}
+
+{% block content %}
+<div class="landing-hero">
+  <div class="hero-header">
+    <div class="hero-badge">Architecture Transition</div>
+    <h1 class="hero-title">Python-First Financial Research Terminal</h1>
+    <p class="hero-subtitle">
+      A fast, resilient, evidence-grounded research platform powered by FastAPI, Jinja2, and external financial intelligence services.
+    </p>
+  </div>
+
+  <div class="runtime-status-grid">
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-label">Runtime Engine</span>
+        <span class="status-pill status-healthy"><span class="status-dot"></span> Active</span>
+      </div>
+      <div class="status-card-value">FastAPI + Uvicorn</div>
+      <div class="status-card-desc">Asynchronous, typed Python backend with sub-millisecond route dispatch.</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-label">Templating System</span>
+        <span class="status-pill status-healthy"><span class="status-dot"></span> Ready</span>
+      </div>
+      <div class="status-card-value">Jinja2 Server Rendering</div>
+      <div class="status-card-desc">Zero JavaScript build required for layout and static document delivery.</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-label">API Compatibility</span>
+        <span class="status-pill status-healthy"><span class="status-dot"></span> 100% Intact</span>
+      </div>
+      <div class="status-card-value">/api/health · /api/research</div>
+      <div class="status-card-desc">Preserving all existing external research services and AgentOS contracts.</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-label">Milestone Target</span>
+        <span class="status-pill status-info">M02 / M15</span>
+      </div>
+      <div class="status-card-value">Application Foundation</div>
+      <div class="status-card-desc">Foundation verified; ready for design system tokens and HTMX search.</div>
+    </div>
+  </div>
+
+  <section class="destinations-section">
+    <div class="section-header">
+      <h2 class="section-title">Core Research Workspaces</h2>
+      <span class="section-tag">4 Destinations</span>
+    </div>
+
+    <div class="destinations-grid">
+      <div class="dest-card" id="dest-market">
+        <div class="dest-icon">📈</div>
+        <h3 class="dest-title">Market Intelligence</h3>
+        <p class="dest-desc">Live quotes, historical candlestick charts, technical indicators, and contextual news streams.</p>
+        <div class="dest-meta">
+          <span class="dest-tag">Quotes</span>
+          <span class="dest-tag">Charts</span>
+          <span class="dest-tag">Signals</span>
+        </div>
+      </div>
+
+      <div class="dest-card" id="dest-analysis">
+        <div class="dest-icon">📊</div>
+        <h3 class="dest-title">Company Deep Analysis</h3>
+        <p class="dest-desc">Comprehensive income statements, balance sheets, cash flows, valuation models, and governance data.</p>
+        <div class="dest-meta">
+          <span class="dest-tag">Financials</span>
+          <span class="dest-tag">Valuation</span>
+          <span class="dest-tag">Health</span>
+        </div>
+      </div>
+
+      <div class="dest-card" id="dest-comparison">
+        <div class="dest-icon">⚖</div>
+        <h3 class="dest-title">Company Comparison</h3>
+        <p class="dest-desc">Normalized side-by-side metric comparison, aligned reporting periods, and transparent uncertainty.</p>
+        <div class="dest-meta">
+          <span class="dest-tag">Peer Alignment</span>
+          <span class="dest-tag">FX Normalized</span>
+        </div>
+      </div>
+
+      <div class="dest-card" id="dest-research">
+        <div class="dest-icon">⚡</div>
+        <h3 class="dest-title">AI Research Desk</h3>
+        <p class="dest-desc">Dedicated research desk with structured output, verifiable evidence citations, and failover resilience.</p>
+        <div class="dest-meta">
+          <span class="dest-tag">Multi-Provider</span>
+          <span class="dest-tag">Evidence-Backed</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
